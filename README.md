@@ -70,7 +70,7 @@ The root `/` is a platform landing page that points visitors to sign up.
 | --- | --- |
 | `apps/web` | The public site — a platform landing at `/` plus every user's site at `/u/<slug>` |
 | `apps/admin-web` | The secret control room (`:3002`) — edit every word, song, photo & letter |
-| `apps/api` | The heart (`:8080`) — auth, per-site content, uploads, share links, all the yes's |
+| `apps/api` | The heart (`:8000`) — auth, per-site content, uploads, share links, all the yes's |
 | `packages/ui` | Shared components, theme, store & hooks |
 | `packages/shared` | Types, mock data, services, Mongo repositories + the seed of all love |
 | `packages/config-eslint` / `packages/config-typescript` | The rules that keep us consistent |
@@ -94,7 +94,7 @@ docker compose up -d mongo
 pnpm dev
 #   web:    http://localhost:3000  💖
 #   admin:  http://localhost:3002  🔐
-#   api:    http://localhost:8080  ⚙️
+#   api:    http://localhost:8000  ⚙️
 
 # 4. Create your account (anyone can join; the very first account becomes `admin`)
 #   http://localhost:3002/register

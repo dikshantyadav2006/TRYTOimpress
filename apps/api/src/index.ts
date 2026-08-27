@@ -3,7 +3,7 @@ import "dotenv/config";
 import { buildApp } from "./app";
 import { connectAndSeed, isDbConfigured } from "./db";
 
-const port = Number(process.env.PORT ?? 8080);
+const port = Number(process.env.PORT ?? 8000);
 const host = process.env.HOST ?? "0.0.0.0";
 
 const app = buildApp();

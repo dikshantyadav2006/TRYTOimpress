@@ -4,7 +4,7 @@ const upstream =
   process.env.API_UPSTREAM ??
   (process.env.NODE_ENV === "production"
     ? "https://trytotry.onrender.com"
-    : "http://localhost:8080");
+    : "http://localhost:8000");
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
