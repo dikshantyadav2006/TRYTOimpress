@@ -1,0 +1,41 @@
+{
+  "name": "@repo/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "dev": "echo \"ui: no dev server\"",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
+  },
+  "dependencies": {
+    "@repo/shared": "workspace:*",
+    "canvas-confetti": "^1.9.3",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.43.0",
+    "tailwind-merge": "^3.3.0",
+    "zustand": "^5.0.14"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@repo/config-eslint": "workspace:*",
+    "@repo/config-typescript": "workspace:*",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

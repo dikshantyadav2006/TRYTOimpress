@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@source "./";
+
+@theme {
+  --color-background: #0e0b10;
+  --color-surface: #17131c;
+  --color-foreground: #f6f1f5;
+  --color-muted-foreground: #a79caa;
+
+  --font-sans: var(--font-dm-sans), var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-cormorant), var(--font-instrument-serif), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-great-vibes), "Brush Script MT", cursive;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-background);
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-pink-400) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-pink-300) 80%, transparent);
+    outline-offset: 3px;
+  }
+}
