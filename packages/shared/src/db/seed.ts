@@ -1,5 +1,23 @@
+import type { Collection } from "mongoose";
 import { ObjectId } from "mongodb";
 
+import {
+  mockCapsules,
+  mockCompliments,
+  mockDates,
+  mockDreams,
+  mockGalleryImages,
+  mockLetters,
+  mockLoveNotes,
+  mockLovePromises,
+  mockMemories,
+  mockProposals,
+  mockQuestions,
+  mockReasons,
+  mockSongs,
+  mockSurprises,
+  mockWishes,
+} from "../data/mock";
 import { defaultSiteSettings } from "../data/site-defaults";
 import type { PageBlock } from "../types/page";
 import { generateSiteSlug, slugifyName } from "../utils/slug";
@@ -422,6 +440,249 @@ export async function seedSite(ownerId: string): Promise<void> {
       { upsert: true },
     );
   }
+
+  await seedTemplateContent(ownerId);
+}
+
+interface SeededDoc {
+  _id: ObjectId;
+  ownerId: string;
+}
+
+async function seedIfEmpty<T extends SeededDoc>(
+  ownerId: string,
+  collection: () => Collection<T>,
+  docs: T[],
+): Promise<void> {
+  if (docs.length === 0) return;
+  const col = collection() as unknown as Collection<SeededDoc>;
+  const existing = await col.countDocuments({ ownerId });
+  if (existing > 0) return;
+  await col.insertMany(docs);
+}
+
+async function seedTemplateContent(ownerId: string): Promise<void> {
+  const now = new Date();
+  const createdAt = (iso?: string): Date => (iso ? new Date(iso) : now);
+
+  await seedIfEmpty(
+    ownerId,
+    memories,
+    mockMemories.map((item, index) => ({
+      _id: new ObjectId(),
+      ownerId,
+      title: item.title,
+      date: item.date,
+      caption: item.caption,
+      order: item.order ?? index,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    galleryImages,
+    mockGalleryImages.map((item, index) => ({
+      _id: new ObjectId(),
+      ownerId,
+      caption: item.caption,
+      category: item.category,
+      featured: item.featured,
+      order: item.order ?? index,
+      registryId: item.id,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    questions,
+    mockQuestions.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      title: item.title,
+      subtitle: item.subtitle,
+      emoji: item.emoji,
+      options: item.options,
+      order: item.order,
+      ...(item.correctAnswerId ? { correctAnswerId: item.correctAnswerId } : {}),
+      createdAt: now,
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    songs,
+    mockSongs.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      title: item.title,
+      artist: item.artist,
+      youtubeId: item.youtubeId,
+      ...(item.note ? { note: item.note } : {}),
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    reasons,
+    mockReasons.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      title: item.title,
+      detail: item.detail,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    dateIdeas,
+    mockDates.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      title: item.title,
+      description: item.description,
+      tag: item.tag,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    letters,
+    mockLetters.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      title: item.title,
+      message: item.message,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    loveNotes,
+    mockLoveNotes.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      text: item.text,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    compliments,
+    mockCompliments.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      text: item.text,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    wishes,
+    mockWishes.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      text: item.text,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    lovePromises,
+    mockLovePromises.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      title: item.title,
+      text: item.text,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    dreams,
+    mockDreams.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      title: item.title,
+      text: item.text,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    capsules,
+    mockCapsules.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      title: item.title,
+      message: item.message,
+      unlockDate: item.unlockDate,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    surprises,
+    mockSurprises.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      emoji: item.emoji,
+      title: item.title,
+      message: item.message,
+      order: item.order,
+      createdAt: createdAt(item.createdAt),
+    })),
+  );
+
+  await seedIfEmpty(
+    ownerId,
+    proposals,
+    mockProposals.map((item) => ({
+      _id: new ObjectId(),
+      ownerId,
+      slug: item.slug,
+      title: item.title,
+      message: item.message,
+      subtitle: item.subtitle,
+      ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
+      ...(item.recipientName ? { recipientName: item.recipientName } : {}),
+      locale: item.locale,
+      status: item.status,
+      createdBy: ownerId,
+      createdAt: createdAt(item.createdAt),
+      updatedAt: createdAt(item.updatedAt),
+    })),
+  );
 }
 
 type MigratableCollection = {
