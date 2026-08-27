@@ -1,0 +1,31 @@
+{
+  "name": "@repo/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./db": "./src/db/index.ts"
+  },
+  "scripts": {
+    "dev": "echo \"shared: no dev server\"",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "mongodb": "~6.20.0",
+    "mongoose": "^8.20.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@repo/config-eslint": "workspace:*",
+    "@repo/config-typescript": "workspace:*",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
