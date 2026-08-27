@@ -3,7 +3,9 @@
 //
 // - Deletes the pages collection so the 19-page template is re-seeded per owner
 //   (on API boot via migrateOnBoot, or on next registration via seedSite).
-// - Deletes the 7 smaller content collections so they can be re-added.
+// - Deletes the 7 smaller content collections so they are re-added for every
+//   NEW registration (seedSite seeds starter content per ownerId; existing
+//   users are not backfilled).
 // - Updates the stored landing footer to match the new chapter count.
 //
 // After running: restart the API (server.ts calls migrateOnBoot on boot).

@@ -120,8 +120,11 @@ pnpm dev
   direct URL that pages render as-is — no files live on disk.
 - On API boot, `migrateOnBoot` backfills `ownerId`/slugs on existing data and
   seeds the first user's site with the 19-page template; every new registration
-  gets the same template via `seedSite`. After that, everything is edited in the
-  admin dashboard and stored in MongoDB per owner.
+  gets the same template via `seedSite`, including starter content for every
+  chapter (memories, gallery, reasons, songs, dates, questions, letters,
+  love-jar, compliments, wishes, promises, dreams, capsules, surprises, and the
+  proposal). After that, everything is edited in the admin dashboard and stored
+  in MongoDB per owner.
 - Registration is open: any user can join, and each gets a unique short slug
   (auto-generated from their name). Only `admin` can edit users/slugs and
   generate share links for other sites.
