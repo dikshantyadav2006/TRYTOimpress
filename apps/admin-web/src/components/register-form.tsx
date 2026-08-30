@@ -10,6 +10,9 @@ import { useAuth } from "@/context/auth-provider";
 import { post } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 
+const VERIFY_CODE =
+  process.env.NEXT_PUBLIC_REGISTER_VERIFY_CODE;
+
 export function RegisterForm() {
   const router = useRouter();
   const { refresh } = useAuth();
@@ -17,6 +20,7 @@ export function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
   const [error, setError] = useState<string>();
   const [retryable, setRetryable] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,6 +28,11 @@ export function RegisterForm() {
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (loading) return;
+    if (VERIFY_CODE && verifyCode !== VERIFY_CODE) {
+      setError("Invalid verification code.");
+      showToast("error", "Invalid verification code.");
+      return;
+    }
     setLoading(true);
     setError(undefined);
     setRetryable(false);
@@ -81,6 +90,20 @@ export function RegisterForm() {
           required
         />
       </div>
+
+      {VERIFY_CODE && (
+        <div>
+          <Label htmlFor="verifyCode">Verify code</Label>
+          <Input
+            id="verifyCode"
+            type="password"
+            autoComplete="off"
+            value={verifyCode}
+            onChange={(event) => setVerifyCode(event.target.value)}
+            required
+          />
+        </div>
+      )}
 
       {error && (
         <div
