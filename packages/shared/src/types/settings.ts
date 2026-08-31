@@ -31,6 +31,11 @@ export interface LoveSettings {
   startLabel: string;
 }
 
+export interface BirthdaySettings {
+  date: string;
+  message: string;
+}
+
 export interface SiteSettings {
   recipientName: string;
   siteTitle: string;
@@ -39,4 +44,5 @@ export interface SiteSettings {
   success: SuccessSettings;
   music: MusicSettings;
   love: LoveSettings;
+  birthday: BirthdaySettings;
 }
