@@ -3,6 +3,18 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import {
+  ChevronLeft,
+  Heart,
+  Pause,
+  Play,
+  RefreshCw,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+} from "lucide-react";
 
 import type { Playlist, PlaylistSong } from "@repo/shared";
 import { vibrate } from "@repo/ui";
@@ -12,10 +24,23 @@ import { PlaylistPlayer, type PlaylistPlayerHandle } from "./playlist-player";
 import { PlaylistAudioPlayer, type PlaylistAudioPlayerHandle } from "./playlist-audio-player";
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+type RepeatMode = "off" | "one" | "all";
 
 function randomOf<T>(items: T[]): T | undefined {
   if (items.length === 0) return undefined;
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function shuffleArr<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const a = copy[i] as T;
+    const b = copy[j] as T;
+    copy[i] = b;
+    copy[j] = a;
+  }
+  return copy;
 }
 
 function overlayRgba(hex: string, alpha: number): string {
@@ -23,57 +48,6 @@ function overlayRgba(hex: string, alpha: number): string {
   if (!match) return `rgba(0, 0, 0, ${alpha})`;
   const [, r, g, b] = match;
   return `rgba(${Number.parseInt(r!, 16)}, ${Number.parseInt(g!, 16)}, ${Number.parseInt(b!, 16)}, ${alpha})`;
-}
-
-function BackIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden>
-      <path d="M20 12H4" />
-      <path d="m10 18-6-6 6-6" />
-    </svg>
-  );
-}
-
-function PlayIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 h-6 w-6" aria-hidden>
-      <path d="M8 5.14v13.72a1 1 0 0 0 1.5.87l11-6.86a1 1 0 0 0 0-1.74l-11-6.86A1 1 0 0 0 8 5.14Z" />
-    </svg>
-  );
-}
-
-function PauseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden>
-      <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
-    </svg>
-  );
-}
-
-function SkipIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden>
-      <path d="m7 6 7 6-7 6V6Z" />
-      <path d="M17 6v12" />
-    </svg>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden>
-      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-      <path d="M3 3v5h5" />
-    </svg>
-  );
-}
-
-function LikeIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden>
-      <path d="M19 14c1.5-1.5 2-3.2 2-4.9C21 6.6 19.4 5 17.4 5c-1.3 0-2.5.6-3.4 1.6-.9-1-2.1-1.6-3.4-1.6C8.6 5 7 6.6 7 9.1c0 1.7.5 3.4 2 4.9l3 3 7-7Z" />
-    </svg>
-  );
 }
 
 function pickQuotation(items: string[]): string | undefined {
@@ -85,32 +59,45 @@ interface Recommendation {
   reason: string;
 }
 
-export function PlaylistExperience({
-  playlist,
-  siteSlug,
-  allPlaylists,
-}: {
+interface PlaylistExperienceProps {
   playlist: Playlist;
+  songs: PlaylistSong[];
+  sourceError: boolean;
   siteSlug: string;
   allPlaylists: Playlist[];
-}) {
+}
+
+export function PlaylistExperience({
+  playlist,
+  songs,
+  sourceError,
+  siteSlug,
+  allPlaylists,
+}: PlaylistExperienceProps) {
   const [background, setBackground] = useState(() => randomOf(playlist.backgrounds));
   const [quote, setQuote] = useState(() => pickQuotation(playlist.quotes));
-  const [index, setIndex] = useState(0);
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [liked, setLiked] = useState(false);
+
+  // Queue state: `played` are completed song indices (history), `upNext` the
+  // remaining ones, `currentIndex` the live track. This deque model makes
+  // prev/next and shuffle consistent and never loses the current track.
+  const [played, setPlayed] = useState<number[]>([]);
+  const [upNext, setUpNext] = useState<number[]>(() => songs.map((_, i) => i).slice(1));
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState<RepeatMode>("off");
+
   const playerRef = useRef<PlaylistPlayerHandle>(null);
   const audioPlayerRef = useRef<PlaylistAudioPlayerHandle>(null);
 
-  // Audio mode renders the cover-art player; video mode renders playback.
   const isAudio = playlist.mode === "audio";
 
-  const songs = playlist.songs;
-  const current = songs[index];
-  const atLast = index >= songs.length - 1;
+  const current = songs[currentIndex];
   const totalCount = songs.length;
+  const hasPrevious = played.length > 0 || repeat !== "off";
 
   useEffect(() => {
     trackPlaylist(siteSlug, `/playlists/${playlist.slug}/plays`);
@@ -123,47 +110,140 @@ export function PlaylistExperience({
     [siteSlug, playlist.slug],
   );
 
-  const goTo = useCallback(
-    (nextIndex: number, opts?: { skipFrom?: PlaylistSong | undefined }) => {
-      if (opts?.skipFrom) trackSong(opts.skipFrom.id, "skips");
-      const target = songs[nextIndex];
-      if (!target) {
-        setStarted(false);
-        setFinished(true);
-        return;
-      }
-      setFinished(false);
-      setIndex(nextIndex);
-      setStarted(true);
-      trackSong(target.id, "plays");
-    },
-    [songs, trackSong],
-  );
+  // Keeps index state in sync if the resolved song list changes shape.
+  useEffect(() => {
+    const nextPlayed = played.filter((i) => i < songs.length);
+    const nextUpNext = upNext.filter((i) => i < songs.length);
+    const clamped = Math.min(currentIndex, Math.max(0, songs.length - 1));
+    if (songs.length === 0) {
+      setPlayed([]);
+      setUpNext([]);
+      setCurrentIndex(0);
+    } else if (
+      nextPlayed.length !== played.length ||
+      nextUpNext.length !== upNext.length ||
+      clamped !== currentIndex ||
+      (songs.length > 0 && currentIndex > songs.length - 1)
+    ) {
+      setPlayed(nextPlayed);
+      setUpNext(nextUpNext);
+      setCurrentIndex(clamped);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songs]);
 
-  const handleEnded = useCallback(() => {
-    if (atLast) {
-      setFinished(true);
+  const advance = useCallback(() => {
+    if (repeat === "one") return;
+
+    if (upNext.length > 0) {
+      const nextIdx = upNext[0]!;
+      setPlayed((p) => [...p, currentIndex]);
+      setUpNext((u) => u.slice(1));
+      setCurrentIndex(nextIdx);
+      setFinished(false);
+      setStarted(true);
+      trackSong(songs[nextIdx]?.id ?? "", "plays");
       return;
     }
-    goTo(index + 1);
-  }, [atLast, goTo, index]);
+
+    if (repeat === "all" && songs.length > 0) {
+      const rest = songs.map((_, i) => i).filter((i) => i !== currentIndex);
+      const nextOrder = shuffle ? shuffleArr(rest) : rest;
+      const nextIdx = nextOrder[0];
+      if (nextIdx !== undefined) {
+        setPlayed((p) => [...p, currentIndex]);
+        setUpNext(nextOrder.slice(1));
+        setCurrentIndex(nextIdx);
+        setFinished(false);
+        setStarted(true);
+        trackSong(songs[nextIdx]?.id ?? "", "plays");
+        return;
+      }
+    }
+
+    setStarted(false);
+    setFinished(true);
+  }, [repeat, upNext, currentIndex, songs, shuffle, trackSong]);
+
+  const handleEnded = useCallback(() => {
+    advance();
+  }, [advance]);
 
   const onSkip = useCallback(() => {
     vibrate(8);
-    if (atLast) {
-      if (current) trackSong(current.id, "skips");
-      setFinished(true);
+    if (songs.length === 0) return;
+    if (current) trackSong(current.id, "skips");
+    advance();
+  }, [advance, current, songs.length, trackSong]);
+
+  const onPrev = useCallback(() => {
+    vibrate(8);
+    if (songs.length === 0) return;
+
+    if (played.length > 0) {
+      const prevIdx = played[played.length - 1]!;
+      setUpNext((u) => [currentIndex, ...u]);
+      setPlayed((p) => p.slice(0, -1));
+      setCurrentIndex(prevIdx);
+      setFinished(false);
+      setStarted(true);
       return;
     }
-    goTo(index + 1, { skipFrom: current });
-  }, [atLast, current, goTo, index, trackSong]);
+
+    if (repeat !== "off" && songs.length > 0) {
+      const rest = songs.map((_, i) => i).filter((i) => i !== currentIndex);
+      const nextOrder = shuffle ? shuffleArr(rest) : rest;
+      const lastIdx = nextOrder[nextOrder.length - 1];
+      if (lastIdx !== undefined) {
+        setUpNext((u) => [currentIndex, ...u]);
+        setCurrentIndex(lastIdx);
+        setFinished(false);
+        setStarted(true);
+      }
+      return;
+    }
+    // Already at the start: restart the engine so controls reflect reality.
+    setFinished(false);
+    setStarted(true);
+  }, [played, currentIndex, repeat, songs, shuffle]);
 
   const onStart = useCallback(() => {
     vibrate(8);
     if (!current) return;
     setStarted(true);
+    setPlaying(true);
     trackSong(current.id, "plays");
   }, [current, trackSong]);
+
+  const onPlayAgain = useCallback(() => {
+    vibrate(8);
+    if (songs.length === 0) return;
+    const rest = songs.map((_, i) => i).slice(1);
+    setUpNext(shuffle ? shuffleArr(rest) : rest);
+    setPlayed([]);
+    setCurrentIndex(0);
+    setFinished(false);
+    setStarted(true);
+    setPlaying(true);
+    trackSong(songs[0]!.id, "plays");
+  }, [songs, shuffle, trackSong]);
+
+  const toggleShuffle = useCallback(() => {
+    vibrate(6);
+    setShuffle((prev) => {
+      const next = !prev;
+      const used = new Set<number>(played);
+      used.add(currentIndex);
+      const remaining = songs.map((_, i) => i).filter((i) => !used.has(i));
+      setUpNext(next ? shuffleArr(remaining) : remaining);
+      return next;
+    });
+  }, [played, currentIndex, songs]);
+
+  const toggleRepeat = useCallback(() => {
+    vibrate(6);
+    setRepeat((r) => (r === "off" ? "one" : r === "one" ? "all" : "off"));
+  }, []);
 
   const onLike = useCallback(() => {
     setLiked((prev) => {
@@ -222,20 +302,25 @@ export function PlaylistExperience({
     (isAudio ? audioPlayerRef : playerRef).current?.togglePlay();
   }, [isAudio]);
 
+  const currentArtwork = current?.thumbnail ?? playlist.coverImage;
+
+  const playerBg =
+    currentArtwork && !isAudio
+      ? `url(${currentArtwork})`
+      : background
+        ? `url(${background})`
+        : `linear-gradient(160deg, ${accentVar}22 0%, ${playlist.theme.overlayColor} 60%)`;
+
   return (
     <main
       className="relative z-0 flex h-dvh w-full flex-col overflow-hidden"
       style={heroStyle}
     >
-      {/* Full-bleed background */}
+      {/* Full-bleed blurred background driven by the active artwork */}
       <div
         aria-hidden
-        className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{
-          backgroundImage: background
-            ? `url(${background})`
-            : `linear-gradient(160deg, ${accentVar}22 0%, ${playlist.theme.overlayColor} 60%)`,
-        }}
+        className="fixed inset-0 -z-20 bg-cover bg-center blur-2xl scale-110"
+        style={{ backgroundImage: playerBg }}
       />
       <div
         aria-hidden
@@ -250,7 +335,7 @@ export function PlaylistExperience({
           aria-label="All playlists"
           className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 text-[var(--pl-text)] shadow-lg backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
         >
-          <BackIcon />
+          <ChevronLeft className="h-5 w-5" />
         </Link>
         <button
           type="button"
@@ -259,7 +344,7 @@ export function PlaylistExperience({
           title="Refresh"
           className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 text-[var(--pl-text)] shadow-lg backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
         >
-          <RefreshIcon />
+          <RefreshCw className="h-5 w-5" />
         </button>
       </header>
 
@@ -278,9 +363,15 @@ export function PlaylistExperience({
                 “{quote}”
               </p>
             )}
-            <p className="mt-10 font-serif italic text-[var(--pl-text)]/45">
-              No songs here yet — check back soon. 🎵
-            </p>
+            {sourceError ? (
+              <p className="mt-10 font-serif italic text-[var(--pl-text)]/60">
+                We couldn’t reach the playlist source just now. Please try again shortly.
+              </p>
+            ) : (
+              <p className="mt-10 font-serif italic text-[var(--pl-text)]/45">
+                No songs here yet — check back soon.
+              </p>
+            )}
           </div>
         ) : finished || (started && !current) ? (
           <motion.section
@@ -341,7 +432,7 @@ export function PlaylistExperience({
               </Link>
               <button
                 type="button"
-                onClick={onRefresh}
+                onClick={onPlayAgain}
                 className="inline-flex h-11 items-center rounded-full border border-white/20 bg-white/10 px-6 text-sm font-medium text-[var(--pl-text)] backdrop-blur-md transition-colors hover:bg-white/15 active:scale-95"
               >
                 Play again
@@ -356,89 +447,151 @@ export function PlaylistExperience({
             className="flex min-h-0 w-full max-w-2xl flex-1 flex-col items-center justify-center overflow-hidden text-center"
           >
             <p className="shrink-0 text-[11px] font-medium uppercase tracking-[0.35em] text-[var(--pl-text)]/50">
-              {playlist.name} · {index + 1} / {totalCount}
+              {playlist.name} · {currentIndex + 1} / {totalCount}
             </p>
-
-            {current && !isAudio && (
-              <>
-                <h1 className="mt-3 shrink-0 font-serif text-4xl text-[var(--pl-text)] sm:text-5xl">
-                  {current.title}
-                </h1>
-                <p className="mt-1 shrink-0 text-sm tracking-wide text-[var(--pl-text)]/60 uppercase">
-                  {current.artist}
-                </p>
-              </>
-            )}
 
             <div className="flex min-h-0 w-full flex-1 items-center justify-center">
               {started ? (
                 isAudio ? (
-                  <>
-                    {current && (
-                      <PlaylistAudioPlayer
-                        ref={audioPlayerRef}
-                        song={current}
-                        accentColor={accentVar}
-                        textColor={textVar}
-                        onEnded={handleEnded}
-                        onPlayingChange={setPlaying}
-                      />
-                    )}
-                  </>
+                  current && (
+                    <PlaylistAudioPlayer
+                      ref={audioPlayerRef}
+                      song={current}
+                      accentColor={accentVar}
+                      textColor={textVar}
+                      onEnded={handleEnded}
+                      onPlayingChange={setPlaying}
+                    />
+                  )
                 ) : (
-                  <>
-                    {current && (
-                      <PlaylistPlayer
-                        ref={playerRef}
-                        videoId={current.youtubeId}
-                        onEnded={handleEnded}
-                        onPlayingChange={setPlaying}
-                      />
-                    )}
-                  </>
+                  current && (
+                    <PlaylistPlayer
+                      ref={playerRef}
+                      videoId={current.youtubeId}
+                      onEnded={handleEnded}
+                      onPlayingChange={setPlaying}
+                    />
+                  )
                 )
               ) : (
-                <button
-                  type="button"
-                  onClick={onStart}
-                  aria-label={`Play ${playlist.name}`}
-                  className="group flex h-20 w-20 items-center justify-center rounded-full text-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.7)] ring-4 ring-white/20 transition-transform hover:scale-110 active:scale-95"
-                  style={{ backgroundColor: accentVar }}
-                >
-                  <PlayIcon />
-                </button>
+                <div className="flex flex-col items-center">
+                  {currentArtwork && (
+                    <div className="mb-8 aspect-square w-full max-w-[15rem] overflow-hidden rounded-3xl shadow-2xl ring-1 ring-white/15">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={currentArtwork}
+                        alt={current?.title ?? playlist.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  )}
+                  {current && !isAudio && (
+                    <>
+                      <h1 className="shrink-0 font-serif text-3xl text-[var(--pl-text)] sm:text-4xl">
+                        {current.title}
+                      </h1>
+                      <p className="mt-1 shrink-0 text-sm tracking-wide text-[var(--pl-text)]/60 uppercase">
+                        {current.artist}
+                      </p>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onStart}
+                    aria-label={`Play ${playlist.name}`}
+                    className="group mt-8 flex h-20 w-20 items-center justify-center rounded-full text-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.7)] ring-4 ring-white/20 transition-transform hover:scale-110 active:scale-95"
+                    style={{ backgroundColor: accentVar }}
+                  >
+                    <Play className="ml-1 h-8 w-8 fill-current" />
+                  </button>
+                </div>
               )}
             </div>
 
             {started && (
-              <div className="flex shrink-0 items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={togglePlay}
-                  aria-label="Play or pause"
-                  className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
-                  style={{ backgroundColor: accentVar }}
-                >
-                  {playing ? <PauseIcon /> : <PlayIcon />}
-                </button>
-                <button
-                  type="button"
-                  onClick={onSkip}
-                  aria-label="Skip to next song"
-                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
-                >
-                  <SkipIcon />
-                </button>
-                <button
-                  type="button"
-                  onClick={onLike}
-                  aria-label="Like this playlist"
-                  className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 backdrop-blur-md transition-transform hover:scale-105 active:scale-95 ${
-                    liked ? "text-rose-400" : "text-[var(--pl-text)]/70"
-                  }`}
-                >
-                  <LikeIcon active={liked} />
-                </button>
+              <div className="flex w-full max-w-sm shrink-0 flex-col items-center gap-4">
+                {!isAudio && current && (
+                  <div className="w-full text-center">
+                    <h1 className="shrink-0 font-serif text-2xl text-[var(--pl-text)] sm:text-3xl">
+                      {current.title}
+                    </h1>
+                    <p className="mt-0.5 shrink-0 text-xs tracking-wide text-[var(--pl-text)]/60 uppercase">
+                      {current.artist}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-center gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={toggleShuffle}
+                    aria-pressed={shuffle}
+                    aria-label="Toggle shuffle"
+                    className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+                      shuffle
+                        ? "bg-white/20 text-white"
+                        : "border border-white/20 bg-black/30 text-[var(--pl-text)]/70"
+                    }`}
+                  >
+                    <Shuffle className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onPrev}
+                    disabled={!hasPrevious}
+                    aria-label="Previous song"
+                    className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <SkipBack className="h-6 w-6 fill-current" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={togglePlay}
+                    aria-label="Play or pause"
+                    className="flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white/20 transition-transform hover:scale-105 active:scale-95"
+                    style={{ backgroundColor: accentVar }}
+                  >
+                    {playing ? (
+                      <Pause className="h-7 w-7 fill-current" />
+                    ) : (
+                      <Play className="ml-0.5 h-7 w-7 fill-current" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSkip}
+                    aria-label="Skip to next song"
+                    className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <SkipForward className="h-6 w-6 fill-current" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleRepeat}
+                    aria-label={`Repeat: ${repeat}`}
+                    aria-pressed={repeat !== "off"}
+                    className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+                      repeat !== "off"
+                        ? "bg-white/20 text-white"
+                        : "border border-white/20 bg-black/30 text-[var(--pl-text)]/70"
+                    }`}
+                  >
+                    {repeat === "one" ? <Repeat1 className="h-5 w-5" /> : <Repeat className="h-5 w-5" />}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onLike}
+                    aria-label="Like this playlist"
+                    className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 backdrop-blur-md transition-transform hover:scale-105 active:scale-95 ${
+                      liked ? "text-rose-400" : "text-[var(--pl-text)]/70"
+                    }`}
+                  >
+                    <Heart className={`h-5 w-5 ${liked ? "fill-current" : ""}`} />
+                  </button>
+                </div>
               </div>
             )}
 

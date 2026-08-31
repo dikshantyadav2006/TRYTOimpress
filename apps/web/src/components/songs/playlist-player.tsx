@@ -108,8 +108,13 @@ export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerPro
           playerVars: {
             autoplay: 1,
             rel: 0,
+            controls: 0,
+            modestbranding: 1,
+            showinfo: 0,
+            iv_load_policy: 3,
             playsinline: 1,
             enablejsapi: 1,
+            loop: 0,
           },
           events: {
             onReady: () => {
