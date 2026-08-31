@@ -53,27 +53,31 @@ export class YouTubePlaylistProvider implements PlaylistProviderAdapter {
       throw new PlaylistImportError("empty_playlist");
     }
 
-    const songs: PlaylistSong[] = videos.map((video, index) => ({
-      id: `yt-${video.id}`,
-      title: video.title,
-      artist: video.author ?? "YouTube",
-      youtubeId: video.id,
-      ...(video.thumbnail ? { thumbnail: video.thumbnail } : {}),
-      ...(video.duration ? { duration: video.duration } : {}),
-      order: index,
-      plays: 0,
-      skips: 0,
-    }));
+    const songs: PlaylistSong[] = videos.map((video, index) => {
+      const song: PlaylistSong = {
+        id: `yt-${video.id}`,
+        title: video.title,
+        artist: video.author ?? "YouTube",
+        youtubeId: video.id,
+        order: index,
+        plays: 0,
+        skips: 0,
+      };
+      if (video.thumbnail) song.thumbnail = video.thumbnail;
+      if (video.duration) song.duration = video.duration;
+      return song;
+    });
 
-    return {
+    const imported: ImportedPlaylist = {
       name: videos[0]?.playlistTitle ?? "YouTube Playlist",
-      description: videos[0]?.playlistDescription,
       mode: "video",
       provider: "youtube",
       providerPlaylistId: playlistId,
-      coverImage: songs[0]?.thumbnail,
       songs,
     };
+    if (videos[0]?.playlistDescription) imported.description = videos[0].playlistDescription;
+    if (songs[0]?.thumbnail) imported.coverImage = songs[0].thumbnail;
+    return imported;
   }
 }
 
@@ -128,11 +132,10 @@ export async function fetchYouTubePlaylist(playlistId: string): Promise<YouTubeV
 
   // Enrich each video with title, author, thumbnail and duration.
   return enrichVideos(videos).then((enriched) =>
-    enriched.map((video, index) => ({
+    enriched.map((video) => ({
       ...video,
       playlistTitle: title,
       ...(description ? { playlistDescription: description } : {}),
-      ...(index === 0 ? {} : {}),
     })),
   );
 }
@@ -154,14 +157,15 @@ async function fetchYouTubePlaylistRss(
       "Unknown";
     const author =
       xmlDecode(entry.match(/<name>([\s\S]*?)<\/name>/)?.[1] ?? "YouTube") ?? "YouTube";
-    return {
+    const video: YouTubeVideo = {
       id: videoId,
       title,
       author,
-      thumbnail: videoId ? getYouTubeThumbnail(videoId) : undefined,
       playlistTitle,
-      ...(playlistDescription ? { playlistDescription } : {}),
     };
+    if (playlistDescription) video.playlistDescription = playlistDescription;
+    if (videoId) video.thumbnail = getYouTubeThumbnail(videoId);
+    return video;
   });
 
   const enriched = await enrichVideos(videos);
@@ -182,13 +186,14 @@ async function enrichVideos(
         thumbnail_url?: string;
       }>(`https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${video.id}`);
       const duration = await fetchVideoDuration(video.id).catch(() => undefined);
-      results.push({
+      const enriched: YouTubeVideo = {
         ...video,
-        title: oembed?.title ?? video.title,
-        author: oembed?.author_name ?? video.author ?? "YouTube",
-        thumbnail: oembed?.thumbnail_url ?? video.thumbnail,
-        ...(duration ? { duration } : {}),
-      });
+        ...(oembed?.title ? { title: oembed.title } : {}),
+        ...(oembed?.author_name ? { author: oembed.author_name } : {}),
+        ...(oembed?.thumbnail_url ? { thumbnail: oembed.thumbnail_url } : {}),
+      };
+      if (duration) enriched.duration = duration;
+      results.push(enriched);
     } catch {
       results.push(video);
     }

@@ -744,6 +744,8 @@ async function seedTemplateContent(ownerId: string): Promise<void> {
       name: item.name,
       slug: item.slug,
       ...(item.description ? { description: item.description } : {}),
+      mode: "video",
+      provider: "manual",
       backgrounds: [],
       theme: { ...item.theme },
       quotes: [...item.quotes],

@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { useState } from "react";
+import { Loader2, Plus, RefreshCw, X } from "lucide-react";
 
-import type { MusicMood, Playlist } from "@repo/shared";
-import { parseYouTubeId, slugify } from "@repo/shared";
+import type { MusicMood, Playlist, PlaylistMode, PlaylistSong } from "@repo/shared";
+import { slugify } from "@repo/shared";
 import { cn } from "@repo/ui";
 
 import { useDirtyGuard } from "@/components/dirty-guard";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui";
 import { ApiError, post, put } from "@/lib/api";
 import { useData } from "@/lib/use-data";
+import { getYouTubeThumbnail } from "@repo/shared";
 
 export const MOOD_OPTIONS: SegmentOption<MusicMood>[] = [
   { value: "love", label: "Love" },
@@ -32,14 +33,36 @@ export const MOOD_OPTIONS: SegmentOption<MusicMood>[] = [
   { value: "night", label: "Late night" },
 ];
 
-interface DraftSong {
-  key: string;
+const MODE_OPTIONS: SegmentOption<PlaylistMode>[] = [
+  { value: "video", label: "Video" },
+  { value: "audio", label: "Audio" },
+];
+
+interface ImportedTrack {
+  id: string;
   title: string;
   artist: string;
-  youtubeInput: string;
+  youtubeId: string;
+  thumbnail?: string;
+  duration?: number;
+}
+
+interface DraftTrack {
+  id: string;
+  title: string;
+  artist: string;
+  youtubeId: string;
+  thumbnail?: string;
+  duration?: number;
   note: string;
   mood: MusicMood;
-  order: number;
+}
+
+function formatDuration(seconds?: number): string {
+  if (!seconds || seconds <= 0) return "";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 function ColorField({
@@ -76,13 +99,17 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
   const router = useRouter();
   const isEdit = Boolean(playlist);
   const { data: allPlaylists } = useData<Playlist>("/playlists");
-  const songCounter = useRef(playlist?.songs.length ?? 0);
 
   const [name, setName] = useState(playlist?.name ?? "");
   const [slug, setSlug] = useState(playlist?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [description, setDescription] = useState(playlist?.description ?? "");
   const [coverImage, setCoverImage] = useState(playlist?.coverImage ?? "");
+  const [mode, setMode] = useState<PlaylistMode>(playlist?.mode ?? "video");
+  const [provider, setProvider] = useState<Playlist["provider"]>(playlist?.provider ?? "manual");
+  const [providerPlaylistId, setProviderPlaylistId] = useState<string | undefined>(
+    playlist?.providerPlaylistId,
+  );
   const [backgrounds, setBackgrounds] = useState<string[]>(playlist?.backgrounds ?? []);
   const [overlayColor, setOverlayColor] = useState(playlist?.theme.overlayColor ?? "#000000");
   const [textColor, setTextColor] = useState(playlist?.theme.textColor ?? "#ffffff");
@@ -92,17 +119,27 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
   const [recommended, setRecommended] = useState<string[]>(playlist?.recommendedSlugs ?? []);
   const [published, setPublished] = useState(playlist?.published ?? true);
   const [order, setOrder] = useState(playlist?.order !== undefined ? String(playlist.order) : "");
-  const [songs, setSongs] = useState<DraftSong[]>(
-    playlist?.songs.map((song) => ({
-      key: `song-${songCounter.current++}`,
-      title: song.title,
-      artist: song.artist,
-      youtubeInput: song.youtubeId,
-      note: song.note ?? "",
-      mood: song.mood ?? "love",
-      order: song.order,
-    })) ?? [],
+  const [tracks, setTracks] = useState<DraftTrack[]>(
+    playlist?.songs.map((song) => {
+      const track: DraftTrack = {
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        youtubeId: song.youtubeId,
+        note: song.note ?? "",
+        mood: song.mood ?? "love",
+      };
+      if (song.thumbnail) track.thumbnail = song.thumbnail;
+      if (song.duration) track.duration = song.duration;
+      return track;
+    }) ?? [],
   );
+
+  const [importUrl, setImportUrl] = useState("");
+  const [importMode, setImportMode] = useState<PlaylistMode>("video");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string>();
+
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
 
@@ -111,6 +148,8 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
     slug,
     description,
     coverImage,
+    mode,
+    provider,
     backgrounds,
     overlayColor,
     textColor,
@@ -120,7 +159,7 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
     recommended,
     published,
     order,
-    songs,
+    tracks,
   });
 
   const onNameChange = (value: string) => {
@@ -128,27 +167,73 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
     if (!slugTouched) setSlug(slugify(value));
   };
 
-  const addSong = () => {
-    songCounter.current += 1;
-    setSongs((current) => [
+  const onImport = async () => {
+    const url = importUrl.trim();
+    if (!url) return;
+    setImporting(true);
+    setImportError(undefined);
+    try {
+      const result = await post<{
+        name: string;
+        description?: string;
+        coverImage?: string;
+        mode: PlaylistMode;
+        provider: string;
+        providerPlaylistId?: string;
+        songs: ImportedTrack[];
+      }>("/playlists/import", { url });
+      if (result.songs.length === 0) {
+        setImportError("No tracks found in that playlist.");
+        return;
+      }
+      if (!name.trim()) setName(result.name);
+      if (!description.trim() && result.description) setDescription(result.description);
+      if (!coverImage && result.coverImage) setCoverImage(result.coverImage);
+      setMode(importMode);
+      setProvider("youtube");
+      setProviderPlaylistId(result.providerPlaylistId);
+      setTracks(
+        result.songs.map((song) => {
+          const track: DraftTrack = {
+            id: song.id,
+            title: song.title,
+            artist: song.artist,
+            youtubeId: song.youtubeId,
+            note: "",
+            mood,
+          };
+          if (song.thumbnail) track.thumbnail = song.thumbnail;
+          if (song.duration) track.duration = song.duration;
+          return track;
+        }),
+      );
+    } catch (err) {
+      setImportError(err instanceof ApiError ? err.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const addTrack = () => {
+    setTracks((current) => [
       ...current,
       {
-        key: `song-${songCounter.current}`,
+        id: crypto.randomUUID(),
         title: "",
         artist: "",
-        youtubeInput: "",
+        youtubeId: "",
         note: "",
-        mood: "love",
-        order: current.length + 1,
+        mood,
       },
     ]);
   };
 
-  const updateSong = (key: string, patch: Partial<DraftSong>) =>
-    setSongs((current) => current.map((song) => (song.key === key ? { ...song, ...patch } : song)));
+  const updateTrack = (id: string, patch: Partial<DraftTrack>) =>
+    setTracks((current) =>
+      current.map((track) => (track.id === id ? { ...track, ...patch } : track)),
+    );
 
-  const removeSong = (key: string) =>
-    setSongs((current) => current.filter((song) => song.key !== key));
+  const removeTrack = (id: string) => setTracks((current) => current.filter((t) => t.id !== id));
 
   const updateQuote = (index: number, value: string) =>
     setQuotes((current) => current.map((quote, i) => (i === index ? value : quote)));
@@ -160,6 +245,15 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
         : [...current, playlistSlug],
     );
 
+  const onThumbnailChange = (id: string, youtubeId: string) => {
+    const trimmed = youtubeId.trim();
+    if (!trimmed) {
+      updateTrack(id, { youtubeId });
+      return;
+    }
+    updateTrack(id, { youtubeId: trimmed, thumbnail: getYouTubeThumbnail(trimmed) });
+  };
+
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -169,31 +263,31 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
       title: string;
       artist: string;
       youtubeId: string;
+      thumbnail?: string;
+      duration?: number;
       note?: string;
       mood?: MusicMood;
       order: number;
     }[] = [];
-    for (const song of songs) {
-      if (!song.title.trim() && !song.artist.trim() && !song.youtubeInput.trim()) continue;
-      if (!song.title.trim() || !song.artist.trim()) {
-        setError("Every song needs a title and artist.");
-        setLoading(false);
-        return;
-      }
-      const youtubeId = parseYouTubeId(song.youtubeInput.trim());
-      if (!youtubeId) {
-        setError(`Invalid YouTube link for “${song.title.trim()}”.`);
+    let index = 0;
+    for (const track of tracks) {
+      if (!track.title.trim() && !track.artist.trim() && !track.youtubeId.trim()) continue;
+      if (!track.title.trim() || !track.artist.trim() || !track.youtubeId.trim()) {
+        setError("Every track needs a title, artist and YouTube link.");
         setLoading(false);
         return;
       }
       songPayload.push({
-        title: song.title.trim(),
-        artist: song.artist.trim(),
-        youtubeId,
-        ...(song.note.trim() ? { note: song.note.trim() } : {}),
-        ...(song.mood ? { mood: song.mood } : {}),
-        order: song.order,
+        title: track.title.trim(),
+        artist: track.artist.trim(),
+        youtubeId: track.youtubeId.trim(),
+        ...(track.thumbnail ? { thumbnail: track.thumbnail } : {}),
+        ...(track.duration ? { duration: track.duration } : {}),
+        ...(track.note.trim() ? { note: track.note.trim() } : {}),
+        ...(track.mood ? { mood: track.mood } : {}),
+        order: index,
       });
+      index += 1;
     }
 
     const body = {
@@ -201,6 +295,9 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
       slug: slug.trim().toLowerCase(),
       ...(description.trim() ? { description: description.trim() } : {}),
       ...(coverImage ? { coverImage } : {}),
+      mode,
+      provider,
+      ...(providerPlaylistId ? { providerPlaylistId } : {}),
       backgrounds,
       theme: { overlayColor, textColor, accentColor },
       quotes: quotes.map((quote) => quote.trim()).filter(Boolean),
@@ -263,9 +360,18 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
             placeholder="Songs that make me think of every goodnight that turns into a good morning."
           />
         </div>
-        <div>
-          <Label>Mood</Label>
-          <SegmentedControl name="mood" options={MOOD_OPTIONS} value={mood} onChange={setMood} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="mode">Player mode</Label>
+            <SegmentedControl name="mode" options={MODE_OPTIONS} value={mode} onChange={setMode} />
+            <p className="mt-1.5 text-xs text-white/40">
+              Audio renders a cover-art player with no video. Video renders the playback.
+            </p>
+          </div>
+          <div>
+            <Label>Mood</Label>
+            <SegmentedControl name="mood" options={MOOD_OPTIONS} value={mood} onChange={setMood} />
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -282,6 +388,44 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
             <Label className="mb-0">Published</Label>
             <Switch checked={published} onChange={setPublished} label="Published" />
           </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Import a playlist" description="Paste a YouTube playlist URL to import every track automatically — no manual entry needed.">
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="import-url">Playlist URL</Label>
+            <Input
+              id="import-url"
+              value={importUrl}
+              onChange={(event) => setImportUrl(event.target.value)}
+              placeholder="https://www.youtube.com/playlist?list=…"
+            />
+          </div>
+          <div>
+            <Label>Import as</Label>
+            <SegmentedControl
+              name="import-mode"
+              options={MODE_OPTIONS}
+              size="sm"
+              value={importMode}
+              onChange={setImportMode}
+            />
+          </div>
+          {importError && <p className="text-sm text-rose-300">{importError}</p>}
+          <button
+            type="button"
+            onClick={() => void onImport()}
+            disabled={!importUrl.trim() || importing}
+            className="hover:border-rose-300/40 hover:bg-white/[0.06] inline-flex h-10 items-center gap-2 rounded-full border border-rose-300/30 bg-rose-500/10 px-5 text-sm font-medium text-rose-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {importing ? "Importing…" : "Import playlist"}
+          </button>
+          <p className="text-xs leading-relaxed text-white/40">
+            Fetching reads the title, thumbnail, duration, order and metadata from the source and
+            saves it to the database. Any YouTube playlist or mix works.
+          </p>
         </div>
       </SectionCard>
 
@@ -355,18 +499,43 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
         </button>
       </SectionCard>
 
-      <SectionCard title="Songs" description="Tracks that play in this playlist.">
+      <SectionCard
+        title="Tracks"
+        description="Imported automatically from the playlist URL. You can still review, add or remove rows before saving."
+      >
         <div className="space-y-4">
-          {songs.map((song) => (
-            <div key={song.key} className="space-y-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5">
+          {tracks.length === 0 && (
+            <p className="text-muted-foreground rounded-xl border border-dashed border-white/10 p-5 text-center text-sm">
+              No tracks yet. Paste a playlist URL above to import them, or add one manually.
+            </p>
+          )}
+          {tracks.map((track, index) => (
+            <div key={track.id} className="space-y-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-                  Song
-                </p>
+                <div className="flex items-center gap-3">
+                  {track.thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={track.thumbnail}
+                      alt=""
+                      className="h-12 w-16 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="bg-white/5 h-12 w-16 shrink-0 rounded-lg" />
+                  )}
+                  <div>
+                    <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+                      Track {index + 1}
+                    </p>
+                    {track.duration ? (
+                      <p className="text-xs text-white/40">{formatDuration(track.duration)}</p>
+                    ) : null}
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={() => removeSong(song.key)}
-                  aria-label="Remove song"
+                  onClick={() => removeTrack(track.id)}
+                  aria-label="Remove track"
                   className="text-muted-foreground hover:text-rose-300 rounded-lg p-1.5 transition-colors"
                 >
                   <X className="h-4 w-4" />
@@ -374,53 +543,53 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor={`${song.key}-title`}>Title</Label>
+                  <Label htmlFor={`${track.id}-title`}>Title</Label>
                   <Input
-                    id={`${song.key}-title`}
-                    value={song.title}
-                    onChange={(event) => updateSong(song.key, { title: event.target.value })}
+                    id={`${track.id}-title`}
+                    value={track.title}
+                    onChange={(event) => updateTrack(track.id, { title: event.target.value })}
                     placeholder="Perfect"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor={`${song.key}-artist`}>Artist</Label>
+                  <Label htmlFor={`${track.id}-artist`}>Artist</Label>
                   <Input
-                    id={`${song.key}-artist`}
-                    value={song.artist}
-                    onChange={(event) => updateSong(song.key, { artist: event.target.value })}
+                    id={`${track.id}-artist`}
+                    value={track.artist}
+                    onChange={(event) => updateTrack(track.id, { artist: event.target.value })}
                     placeholder="Ed Sheeran"
                     required
                   />
                 </div>
               </div>
               <div>
-                <Label htmlFor={`${song.key}-youtube`}>YouTube link or video ID</Label>
+                <Label htmlFor={`${track.id}-youtube`}>YouTube video ID or link</Label>
                 <Input
-                  id={`${song.key}-youtube`}
-                  value={song.youtubeInput}
-                  onChange={(event) => updateSong(song.key, { youtubeInput: event.target.value })}
+                  id={`${track.id}-youtube`}
+                  value={track.youtubeId}
+                  onChange={(event) => onThumbnailChange(track.id, event.target.value)}
                   placeholder="https://www.youtube.com/watch?v=…"
                   required
                 />
               </div>
               <div>
-                <Label htmlFor={`${song.key}-note`}>Note (optional)</Label>
+                <Label htmlFor={`${track.id}-note`}>Note (optional)</Label>
                 <Input
-                  id={`${song.key}-note`}
-                  value={song.note}
-                  onChange={(event) => updateSong(song.key, { note: event.target.value })}
+                  id={`${track.id}-note`}
+                  value={track.note}
+                  onChange={(event) => updateTrack(track.id, { note: event.target.value })}
                   placeholder="Why this song is ours…"
                 />
               </div>
               <div>
                 <Label>Mood</Label>
                 <SegmentedControl
-                  name={`${song.key}-mood`}
+                  name={`${track.id}-mood`}
                   options={MOOD_OPTIONS}
                   size="sm"
-                  value={song.mood}
-                  onChange={(value) => updateSong(song.key, { mood: value })}
+                  value={track.mood}
+                  onChange={(value) => updateTrack(track.id, { mood: value })}
                 />
               </div>
             </div>
@@ -428,11 +597,11 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
         </div>
         <button
           type="button"
-          onClick={addSong}
+          onClick={addTrack}
           className="hover:border-rose-300/40 hover:bg-white/[0.06] inline-flex h-10 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-white/85 transition-colors"
         >
           <Plus className="h-4 w-4 text-rose-300" />
-          Add song
+          Add track manually
         </button>
       </SectionCard>
 

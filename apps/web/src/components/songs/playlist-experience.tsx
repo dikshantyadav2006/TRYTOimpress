@@ -9,6 +9,7 @@ import { vibrate } from "@repo/ui";
 
 import { trackPlaylist } from "@/lib/track-playlist";
 import { PlaylistPlayer, type PlaylistPlayerHandle } from "./playlist-player";
+import { PlaylistAudioPlayer, type PlaylistAudioPlayerHandle } from "./playlist-audio-player";
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -101,6 +102,10 @@ export function PlaylistExperience({
   const [playing, setPlaying] = useState(false);
   const [liked, setLiked] = useState(false);
   const playerRef = useRef<PlaylistPlayerHandle>(null);
+  const audioPlayerRef = useRef<PlaylistAudioPlayerHandle>(null);
+
+  // Audio mode renders the cover-art player; video mode renders playback.
+  const isAudio = playlist.mode === "audio";
 
   const songs = playlist.songs;
   const current = songs[index];
@@ -213,9 +218,13 @@ export function PlaylistExperience({
     backgroundColor: overlayRgba(playlist.theme.overlayColor, 0.82),
   } as React.CSSProperties;
 
+  const togglePlay = useCallback(() => {
+    (isAudio ? audioPlayerRef : playerRef).current?.togglePlay();
+  }, [isAudio]);
+
   return (
     <main
-      className="relative z-0 flex min-h-dvh w-full flex-col overflow-hidden"
+      className="relative z-0 flex h-dvh w-full flex-col overflow-hidden"
       style={heroStyle}
     >
       {/* Full-bleed background */}
@@ -235,7 +244,7 @@ export function PlaylistExperience({
       />
 
       {/* Minimal chrome */}
-      <header className="flex items-center justify-between px-5 pt-5 sm:px-8 sm:pt-7">
+      <header className="flex shrink-0 items-center justify-between px-5 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-8 sm:pt-7">
         <Link
           href={hubHref}
           aria-label="All playlists"
@@ -254,9 +263,10 @@ export function PlaylistExperience({
         </button>
       </header>
 
-      <div className="flex w-full flex-1 flex-col items-center justify-center px-6 py-8 text-center">
+      {/* Scroll-free body: everything fits within 100dvh */}
+      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-8">
         {songs.length === 0 ? (
-          <div className="max-w-md">
+          <div className="max-w-md text-center">
             <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-[var(--pl-text)]/50">
               playlist
             </p>
@@ -277,7 +287,7 @@ export function PlaylistExperience({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: EASE }}
-            className="max-w-2xl"
+            className="max-h-full w-full max-w-2xl overflow-hidden text-center"
           >
             <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-[var(--pl-text)]/50">
               {playlist.name}
@@ -343,90 +353,102 @@ export function PlaylistExperience({
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7, ease: EASE }}
-            className="w-full max-w-2xl"
+            className="flex min-h-0 w-full max-w-2xl flex-1 flex-col items-center justify-center overflow-hidden text-center"
           >
-            <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-[var(--pl-text)]/50">
+            <p className="shrink-0 text-[11px] font-medium uppercase tracking-[0.35em] text-[var(--pl-text)]/50">
               {playlist.name} · {index + 1} / {totalCount}
             </p>
 
-            {current && (
+            {current && !isAudio && (
               <>
-                <h1 className="mt-5 font-serif text-4xl text-[var(--pl-text)] sm:text-5xl">
+                <h1 className="mt-3 shrink-0 font-serif text-4xl text-[var(--pl-text)] sm:text-5xl">
                   {current.title}
                 </h1>
-                <p className="mt-2 text-sm tracking-wide text-[var(--pl-text)]/60 uppercase">
+                <p className="mt-1 shrink-0 text-sm tracking-wide text-[var(--pl-text)]/60 uppercase">
                   {current.artist}
                 </p>
               </>
             )}
 
-            <div className="mt-8">
+            <div className="flex min-h-0 w-full flex-1 items-center justify-center">
               {started ? (
-                <>
-                  {current && (
-                    <PlaylistPlayer
-                      ref={playerRef}
-                      key={current.id}
-                      videoId={current.youtubeId}
-                      onEnded={handleEnded}
-                      onPlayingChange={setPlaying}
-                    />
-                  )}
-                  <div className="mt-5 flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => playerRef.current?.togglePlay()}
-                      aria-label="Play or pause"
-                      className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
-                      style={{ backgroundColor: accentVar }}
-                    >
-                      {playing ? <PauseIcon /> : <PlayIcon />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onSkip}
-                      aria-label="Skip to next song"
-                      className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
-                    >
-                      <SkipIcon />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onLike}
-                      aria-label="Like this playlist"
-                      className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 backdrop-blur-md transition-transform hover:scale-105 active:scale-95 ${
-                        liked ? "text-rose-400" : "text-[var(--pl-text)]/70"
-                      }`}
-                    >
-                      <LikeIcon active={liked} />
-                    </button>
-                  </div>
-                </>
+                isAudio ? (
+                  <>
+                    {current && (
+                      <PlaylistAudioPlayer
+                        ref={audioPlayerRef}
+                        song={current}
+                        accentColor={accentVar}
+                        textColor={textVar}
+                        onEnded={handleEnded}
+                        onPlayingChange={setPlaying}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {current && (
+                      <PlaylistPlayer
+                        ref={playerRef}
+                        videoId={current.youtubeId}
+                        onEnded={handleEnded}
+                        onPlayingChange={setPlaying}
+                      />
+                    )}
+                  </>
+                )
               ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={onStart}
-                    aria-label={`Play ${playlist.name}`}
-                    className="group mx-auto flex h-20 w-20 items-center justify-center rounded-full text-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.7)] ring-4 ring-white/20 transition-transform hover:scale-110 active:scale-95"
-                    style={{ backgroundColor: accentVar }}
-                  >
-                    <PlayIcon />
-                  </button>
-                  <p className="mt-4 font-serif text-sm italic text-[var(--pl-text)]/50">
-                    hit play · let the mood run
-                  </p>
-                </>
+                <button
+                  type="button"
+                  onClick={onStart}
+                  aria-label={`Play ${playlist.name}`}
+                  className="group flex h-20 w-20 items-center justify-center rounded-full text-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.7)] ring-4 ring-white/20 transition-transform hover:scale-110 active:scale-95"
+                  style={{ backgroundColor: accentVar }}
+                >
+                  <PlayIcon />
+                </button>
               )}
             </div>
 
-            {quote && (
+            {started && (
+              <div className="flex shrink-0 items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={togglePlay}
+                  aria-label="Play or pause"
+                  className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
+                  style={{ backgroundColor: accentVar }}
+                >
+                  {playing ? <PauseIcon /> : <PlayIcon />}
+                </button>
+                <button
+                  type="button"
+                  onClick={onSkip}
+                  aria-label="Skip to next song"
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
+                >
+                  <SkipIcon />
+                </button>
+                <button
+                  type="button"
+                  onClick={onLike}
+                  aria-label="Like this playlist"
+                  className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 backdrop-blur-md transition-transform hover:scale-105 active:scale-95 ${
+                    liked ? "text-rose-400" : "text-[var(--pl-text)]/70"
+                  }`}
+                >
+                  <LikeIcon active={liked} />
+                </button>
+              </div>
+            )}
+
+            {quote && !isAudio && (
               <motion.p
                 key={quote}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.2, ease: EASE }}
-                className="mx-auto mt-10 max-w-md font-serif text-base italic leading-relaxed text-[var(--pl-text)]/70 sm:text-lg"
+                className="mx-auto mt-6 max-w-md shrink-0 font-serif text-base italic leading-relaxed text-[var(--pl-text)]/70 sm:text-lg"
               >
                 “{quote}”
               </motion.p>
