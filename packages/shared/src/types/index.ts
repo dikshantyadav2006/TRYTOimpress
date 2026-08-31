@@ -39,6 +39,12 @@ export type {
 } from "./settings";
 export type { Page, PageBlock } from "./page";
 export type { Song } from "./song";
+export type {
+  MusicMood,
+  Playlist,
+  PlaylistSong,
+  PlaylistTheme,
+} from "./playlist";
 export type { Reason, ReasonId } from "./reason";
 export type { DateIdea, DateIdeaId } from "./date";
 export type { Letter, LetterId } from "./letter";

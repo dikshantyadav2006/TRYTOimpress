@@ -10,6 +10,7 @@ import type { LoveNote } from "../types/note";
 import type { Media } from "../types/media";
 import type { Memory } from "../types/memory";
 import type { Page } from "../types/page";
+import type { Playlist } from "../types/playlist";
 import type { Proposal } from "../types/proposal";
 import type { LovePromise } from "../types/promise";
 import type { Answer, Question, QuestionOption } from "../types/question";
@@ -33,6 +34,7 @@ import {
   type MediaDoc,
   type MemoryDoc,
   type PageDoc,
+  type PlaylistDoc,
   type ProposalDoc,
   type ProposalResponseDoc,
   type QuestionDoc,
@@ -309,6 +311,30 @@ export function mapSong(doc: SongDoc): Song {
     ...(doc.note ? { note: doc.note } : {}),
     order: doc.order,
     createdAt: doc.createdAt.toISOString(),
+  };
+}
+
+export function mapPlaylist(doc: PlaylistDoc): Playlist {
+  return {
+    id: toId(doc._id),
+    name: doc.name,
+    slug: doc.slug,
+    ...(doc.description ? { description: doc.description } : {}),
+    ...(doc.coverImage ? { coverImage: doc.coverImage } : {}),
+    backgrounds: [...(doc.backgrounds ?? [])],
+    theme: { ...doc.theme },
+    quotes: [...(doc.quotes ?? [])],
+    mood: doc.mood,
+    ...(doc.recommendedSlugs?.length
+      ? { recommendedSlugs: [...doc.recommendedSlugs] }
+      : {}),
+    songs: (doc.songs ?? []).map((song) => ({ ...song })),
+    plays: doc.plays ?? 0,
+    likes: doc.likes ?? 0,
+    order: doc.order,
+    published: doc.published,
+    createdAt: doc.createdAt.toISOString(),
+    updatedAt: doc.updatedAt.toISOString(),
   };
 }
 

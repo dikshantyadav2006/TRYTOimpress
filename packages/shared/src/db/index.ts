@@ -13,6 +13,7 @@ export {
   sessions,
   media,
   songs,
+  playlists,
   reasons,
   dateIdeas,
   letters,
@@ -38,6 +39,7 @@ export type {
   SessionDoc,
   MediaDoc,
   SongDoc,
+  PlaylistDoc,
   ReasonDoc,
   DateIdeaDoc,
   LetterDoc,
@@ -64,6 +66,8 @@ export { MongoMediaRepository } from "./repositories/media";
 export type { MediaInput, MediaDuplicateCheck } from "./repositories/media";
 export { MongoSongRepository } from "./repositories/song";
 export type { SongInput } from "./repositories/song";
+export { MongoPlaylistRepository } from "./repositories/playlist";
+export type { PlaylistInput } from "./repositories/playlist";
 export { MongoReasonRepository } from "./repositories/reason";
 export type { ReasonInput } from "./repositories/reason";
 export { MongoDateIdeaRepository } from "./repositories/date";
@@ -91,6 +95,7 @@ export { deleteSiteData } from "./cleanup";
 export {
   mapSettings,
   mapSong,
+  mapPlaylist,
   mapReason,
   mapDateIdea,
   mapLetter,

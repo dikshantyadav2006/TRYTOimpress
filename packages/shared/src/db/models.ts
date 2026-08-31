@@ -7,6 +7,7 @@ import type { ProposalStatus } from "../types/proposal";
 import type { ProposalAnswer } from "../types/response";
 import type { AdminRole } from "../types/admin";
 import type { PageBlock } from "../types/page";
+import type { MusicMood } from "../types/playlist";
 import type { SharePermission, ShareRole } from "../types/share";
 
 export interface MemoryDoc {
@@ -188,6 +189,46 @@ export interface SongDoc {
   createdAt: Date;
 }
 
+export interface PlaylistSongDoc {
+  id: string;
+  title: string;
+  artist: string;
+  youtubeId: string;
+  duration?: number;
+  mood?: MusicMood;
+  note?: string;
+  order: number;
+  plays: number;
+  skips: number;
+}
+
+export interface PlaylistThemeDoc {
+  overlayColor: string;
+  textColor: string;
+  accentColor: string;
+}
+
+export interface PlaylistDoc {
+  _id: ObjectId;
+  ownerId: string;
+  name: string;
+  slug: string;
+  description?: string;
+  coverImage?: string;
+  backgrounds: string[];
+  theme: PlaylistThemeDoc;
+  quotes: string[];
+  mood: MusicMood;
+  recommendedSlugs?: string[];
+  songs: PlaylistSongDoc[];
+  plays: number;
+  likes: number;
+  order: number;
+  published: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ReasonDoc {
   _id: ObjectId;
   ownerId: string;
@@ -313,6 +354,7 @@ export const CollectionName = {
   Sessions: "sessions",
   Media: "media",
   Songs: "songs",
+  Playlists: "playlists",
   Reasons: "reasons",
   Dates: "dates",
   Letters: "letters",
@@ -350,6 +392,8 @@ export const media = (): Collection<MediaDoc> =>
   mongoose.connection.collection<MediaDoc>(CollectionName.Media);
 export const songs = (): Collection<SongDoc> =>
   mongoose.connection.collection<SongDoc>(CollectionName.Songs);
+export const playlists = (): Collection<PlaylistDoc> =>
+  mongoose.connection.collection<PlaylistDoc>(CollectionName.Playlists);
 export const reasons = (): Collection<ReasonDoc> =>
   mongoose.connection.collection<ReasonDoc>(CollectionName.Reasons);
 export const dateIdeas = (): Collection<DateIdeaDoc> =>

@@ -14,11 +14,11 @@ import {
   mockProposals,
   mockQuestions,
   mockReasons,
-  mockSongs,
   mockSurprises,
   mockWishes,
 } from "../data/mock";
 import { defaultSiteSettings } from "../data/site-defaults";
+import type { MusicMood } from "../types/playlist";
 import type { PageBlock } from "../types/page";
 import { generateSiteSlug, slugifyName } from "../utils/slug";
 import {
@@ -42,6 +42,7 @@ import {
   shareLinks,
   siteSettings,
   songs,
+  playlists,
   surprises,
   wishes,
 } from "./models";
@@ -435,6 +436,194 @@ const seedPages: SeedPage[] = [
   },
 ];
 
+export interface SeedPlaylistSong {
+  title: string;
+  artist: string;
+  youtubeId: string;
+  note?: string;
+}
+
+export interface SeedPlaylist {
+  name: string;
+  slug: string;
+  description?: string;
+  mood: MusicMood;
+  theme: {
+    overlayColor: string;
+    textColor: string;
+    accentColor: string;
+  };
+  quotes: string[];
+  recommendedSlugs?: string[];
+  songs: SeedPlaylistSong[];
+  order: number;
+  published?: boolean;
+}
+
+const seedPlaylists: SeedPlaylist[] = [
+  {
+    name: "Love Me",
+    slug: "love-me",
+    description: "songs that sound the way I feel about you",
+    mood: "love",
+    theme: {
+      overlayColor: "#1a0510",
+      textColor: "#ffffff",
+      accentColor: "#fb7185",
+    },
+    quotes: [
+      "Every love song suddenly makes sense.",
+      "You are my favourite song — I never hit skip.",
+      "Some stories end. Ours just keeps playing.",
+    ],
+    recommendedSlugs: ["forever-yours", "miss-you"],
+    songs: [
+      {
+        title: "Perfect",
+        artist: "Ed Sheeran",
+        youtubeId: "2Vv-BfVoq4g",
+        note: "The song I always think of when I think of us.",
+      },
+    ],
+    order: 1,
+    published: true,
+  },
+  {
+    name: "Miss You",
+    slug: "miss-you",
+    description: "for the hours I wished you were here",
+    mood: "miss-you",
+    theme: {
+      overlayColor: "#0a0a12",
+      textColor: "#ffffff",
+      accentColor: "#d4a373",
+    },
+    quotes: [
+      "Some days are harder without you.",
+      "I still look for you in songs.",
+      "Late nights feel longer now.",
+    ],
+    recommendedSlugs: ["sad-hours", "late-night"],
+    songs: [
+      {
+        title: "Stay With Me",
+        artist: "Sam Smith",
+        youtubeId: "pB-5XG-DbAA",
+        note: "How I feel every time the night ends.",
+      },
+    ],
+    order: 2,
+    published: true,
+  },
+  {
+    name: "Late Night",
+    slug: "late-night",
+    description: "3am feelings, moonlit talks",
+    mood: "night",
+    theme: {
+      overlayColor: "#020617",
+      textColor: "#e2e8f0",
+      accentColor: "#818cf8",
+    },
+    quotes: [
+      "The city sleeps — we stay awake.",
+      "Some conversations only happen after midnight.",
+      "Hold on a little longer.",
+    ],
+    recommendedSlugs: ["miss-you", "rainy-mood"],
+    songs: [
+      {
+        title: "Hold On",
+        artist: "Justin Bieber",
+        youtubeId: "Tl_yMfGZVSs",
+        note: "For every time we held on a little longer.",
+      },
+    ],
+    order: 3,
+    published: true,
+  },
+  {
+    name: "Rainy Mood",
+    slug: "rainy-mood",
+    description: "window rain, slow beats, warm coffee",
+    mood: "rain",
+    theme: {
+      overlayColor: "#0c1220",
+      textColor: "#e2e8f0",
+      accentColor: "#38bdf8",
+    },
+    quotes: [
+      "Let the rain say what we won't.",
+      "Gray skies, golden thoughts.",
+      "Every drop sounds like a memory.",
+    ],
+    recommendedSlugs: ["sad-hours", "love-me"],
+    songs: [],
+    order: 4,
+    published: true,
+  },
+  {
+    name: "Moving On",
+    slug: "moving-on",
+    description: "letting go, one track at a time",
+    mood: "sad",
+    theme: {
+      overlayColor: "#14110b",
+      textColor: "#fef3c7",
+      accentColor: "#f59e0b",
+    },
+    quotes: [
+      "Healing has its own rhythm.",
+      "Goodbyes are just new hellos in disguise.",
+      "Let the melody carry it away.",
+    ],
+    recommendedSlugs: ["rainy-mood", "sad-hours"],
+    songs: [],
+    order: 5,
+    published: true,
+  },
+  {
+    name: "Sad Hours",
+    slug: "sad-hours",
+    description: "for when your heart needs a moment",
+    mood: "sad",
+    theme: {
+      overlayColor: "#100a1a",
+      textColor: "#e9e4d8",
+      accentColor: "#a78bfa",
+    },
+    quotes: [
+      "It's okay to feel it all.",
+      "Some songs are just emotions with a beat.",
+      "You are never alone in the quiet.",
+    ],
+    recommendedSlugs: ["miss-you", "rainy-mood"],
+    songs: [],
+    order: 6,
+    published: true,
+  },
+  {
+    name: "Forever Yours",
+    slug: "forever-yours",
+    description: "the songs we promised would never end",
+    mood: "love",
+    theme: {
+      overlayColor: "#12050c",
+      textColor: "#fff1f2",
+      accentColor: "#f43f5e",
+    },
+    quotes: [
+      "For as long as there's music, there's us.",
+      "Forever isn't long enough.",
+      "Our song always finds its way back.",
+    ],
+    recommendedSlugs: ["love-me", "miss-you"],
+    songs: [],
+    order: 7,
+    published: true,
+  },
+];
+
 export async function seedSite(ownerId: string): Promise<void> {
   await siteSettings().updateOne(
     { ownerId },
@@ -547,16 +736,34 @@ async function seedTemplateContent(ownerId: string): Promise<void> {
 
   await seedIfEmpty(
     ownerId,
-    songs,
-    mockSongs.map((item) => ({
+    playlists,
+    seedPlaylists.map((item) => ({
       _id: new ObjectId(),
       ownerId,
-      title: item.title,
-      artist: item.artist,
-      youtubeId: item.youtubeId,
-      ...(item.note ? { note: item.note } : {}),
+      name: item.name,
+      slug: item.slug,
+      ...(item.description ? { description: item.description } : {}),
+      backgrounds: [],
+      theme: { ...item.theme },
+      quotes: [...item.quotes],
+      mood: item.mood,
+      ...(item.recommendedSlugs?.length ? { recommendedSlugs: [...item.recommendedSlugs] } : {}),
+      songs: item.songs.map((song, index) => ({
+        id: new ObjectId().toString(),
+        title: song.title,
+        artist: song.artist,
+        youtubeId: song.youtubeId,
+        ...(song.note ? { note: song.note } : {}),
+        order: index + 1,
+        plays: 0,
+        skips: 0,
+      })),
+      plays: 0,
+      likes: 0,
       order: item.order,
-      createdAt: createdAt(item.createdAt),
+      published: item.published ?? true,
+      createdAt: now,
+      updatedAt: now,
     })),
   );
 
@@ -734,6 +941,7 @@ const ORPHANABLE_COLLECTIONS = [
   pages,
   siteSettings,
   songs,
+  playlists,
   reasons,
   dateIdeas,
   letters,
