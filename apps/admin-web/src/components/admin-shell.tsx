@@ -72,7 +72,7 @@ function navSections(user: { slug?: string; role?: string } | null): { label: st
     items: [
       { href: "/memories", label: "Memories", icon: BookHeart },
       { href: "/gallery", label: "Gallery", icon: Images },
-      { href: "/songs", label: "Songs", icon: Music2 },
+      { href: "/playlists", label: "Playlists", icon: Music2 },
       { href: "/questions", label: "Questions", icon: MessageCircleQuestion },
       { href: "/reasons", label: "Reasons", icon: Heart },
       { href: "/dates", label: "Dates", icon: CalendarHeart },
@@ -433,7 +433,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         { id: "memory", label: "Memory", href: "/memories/new", icon: BookHeart },
         { id: "image", label: "Gallery image", href: "/gallery/new", icon: Images },
         { id: "bulk", label: "Bulk gallery upload", href: "/gallery/bulk", icon: Images },
-        { id: "song", label: "Song", href: "/songs/new", icon: Music2 },
+        { id: "playlist", label: "Playlist", href: "/playlists/new", icon: Music2 },
         { id: "question", label: "Question", href: "/questions/new", icon: MessageCircleQuestion },
         { id: "reason", label: "Reason", href: "/reasons/new", icon: Heart },
         { id: "date", label: "Date", href: "/dates/new", icon: CalendarHeart },
