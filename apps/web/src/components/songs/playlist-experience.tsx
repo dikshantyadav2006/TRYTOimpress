@@ -331,17 +331,19 @@ export function PlaylistExperience({
       className="relative z-0 flex h-dvh w-full flex-col overflow-hidden"
       style={heroStyle}
     >
-      {/* Full-bleed blurred background driven by the active artwork */}
-      <div
-        aria-hidden
-        className="fixed inset-0 -z-20 bg-cover bg-center blur-2xl scale-110"
-        style={{ backgroundImage: playerBg }}
-      />
-      <div
-        aria-hidden
-        className="fixed inset-0 -z-10"
-        style={{ background: overlayRgba(playlist.theme.overlayColor, 0.62) }}
-      />
+      {/* Full-bleed blurred background driven by the active artwork.
+          Wrapped in a clipped fixed layer so the scaled blur can never spill
+          past the viewport and cause a page scrollbar. */}
+      <div aria-hidden className="fixed inset-0 -z-20 overflow-hidden">
+        <div
+          className="absolute inset-0 scale-110 bg-cover bg-center blur-2xl"
+          style={{ backgroundImage: playerBg }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: overlayRgba(playlist.theme.overlayColor, 0.62) }}
+        />
+      </div>
 
       {/* Minimal chrome */}
       <header className="flex shrink-0 items-center justify-between px-5 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-8 sm:pt-7">
@@ -473,7 +475,7 @@ export function PlaylistExperience({
                   {current && (
                     isAudio ? (
                       <div
-                        className="flex justify-center overflow-hidden"
+                        className="flex min-h-0 w-full justify-center overflow-hidden"
                         style={{ width: "min(24rem, 100%, 40dvh)" }}
                       >
                         <PlaylistAudioPlayer
@@ -486,30 +488,24 @@ export function PlaylistExperience({
                         />
                       </div>
                     ) : (
-                      <div
-                        className="flex max-w-full justify-center overflow-hidden"
-                        style={{ width: "min(28rem, calc((52dvh - 3rem) * 1.7778))" }}
-                      >
-                        <PlaylistPlayer
-                          ref={playerRef}
-                          videoId={current.youtubeId}
-                          onEnded={handleEnded}
-                          onPlayingChange={setPlaying}
-                        />
+                      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden">
+                        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                          <PlaylistPlayer
+                            ref={playerRef}
+                            videoId={current.youtubeId}
+                            onEnded={handleEnded}
+                            onPlayingChange={setPlaying}
+                          />
+                        </div>
+                        <h1 className="mt-3 max-w-xl shrink-0 truncate font-serif text-2xl text-[var(--pl-text)] sm:text-3xl">
+                          {current?.title}
+                        </h1>
+                        <p className="mt-0.5 shrink-0 truncate text-xs uppercase tracking-wide text-[var(--pl-text)]/60">
+                          {current?.artist}
+                        </p>
                       </div>
                     )
                   )}
-
-                  {!isAudio ? (
-                    <>
-                      <h1 className="mt-3 max-w-xl shrink-0 truncate font-serif text-2xl text-[var(--pl-text)] sm:text-3xl">
-                        {current?.title}
-                      </h1>
-                      <p className="mt-0.5 shrink-0 truncate text-xs uppercase tracking-wide text-[var(--pl-text)]/60">
-                        {current?.artist}
-                      </p>
-                    </>
-                  ) : null}
 
                   {!started && (
                     <button

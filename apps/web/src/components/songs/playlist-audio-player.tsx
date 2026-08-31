@@ -9,7 +9,7 @@ interface YtPlayerOptions {
   videoId: string;
   playerVars?: Record<string, unknown>;
   events?: {
-    onReady?: (event: { target: YtPlayer }) => void;
+    onReady?: () => void;
     onStateChange?: (event: { data: number }) => void;
     onError?: () => void;
   };
@@ -75,7 +75,10 @@ export const PlaylistAudioPlayer = forwardRef<
   const containerIdRef = useRef<string>(`yt-a-${Math.random().toString(36).slice(2, 10)}`);
   const playerRef = useRef<YtPlayer | null>(null);
   const ytRef = useRef<YtApi | null>(null);
-  const songIdRef = useRef(song.youtubeId);
+  const requestedRef = useRef(song.youtubeId);
+  const currentRef = useRef<string | null>(null);
+  const readyRef = useRef(false);
+  const switchingRef = useRef(false);
   const onEndedRef = useRef(onEnded);
   const onPlayingChangeRef = useRef(onPlayingChange);
   const playingRef = useRef(false);
@@ -89,8 +92,33 @@ export const PlaylistAudioPlayer = forwardRef<
   }, []);
 
   useEffect(() => {
-    songIdRef.current = song.youtubeId;
+    requestedRef.current = song.youtubeId;
   }, [song.youtubeId]);
+
+  const loadRequested = useCallback(() => {
+    const id = requestedRef.current;
+    const player = playerRef.current;
+    if (!player || !readyRef.current || id == null) return;
+    switchingRef.current = true;
+    currentRef.current = id;
+    try {
+      player.loadVideoById(id);
+      player.playVideo();
+      setPlaying(true);
+    } catch {
+      window.setTimeout(() => {
+        if (requestedRef.current !== id) return;
+        try {
+          player.loadVideoById(id);
+          player.playVideo();
+          setPlaying(true);
+        } catch {
+          // let onStateChange/onError settle
+        }
+      }, 400);
+    }
+    switchingRef.current = false;
+  }, [setPlaying]);
 
   useEffect(() => {
     let disposed = false;
@@ -109,7 +137,7 @@ export const PlaylistAudioPlayer = forwardRef<
         }
       };
       playerRef.current = new yt.Player(containerIdRef.current, {
-        videoId: song.youtubeId,
+        videoId: requestedRef.current,
         playerVars: {
           autoplay: 1,
           rel: 0,
@@ -117,9 +145,21 @@ export const PlaylistAudioPlayer = forwardRef<
           enablejsapi: 1,
         },
         events: {
-          onReady: () => setPlaying(true),
+          onReady: () => {
+            if (disposed) return;
+            readyRef.current = true;
+            currentRef.current = requestedRef.current;
+            loadRequested();
+          },
           onStateChange,
-          onError: () => onEndedRef.current(),
+          onError: () => {
+            // Only auto-advance when the error concerns the requested video and
+            // the player isn't mid-switch, to avoid skipping two songs.
+            if (switchingRef.current || !readyRef.current) return;
+            if (currentRef.current == null || currentRef.current === requestedRef.current) {
+              onEndedRef.current();
+            }
+          },
         },
       });
     });
@@ -127,20 +167,35 @@ export const PlaylistAudioPlayer = forwardRef<
       disposed = true;
       playerRef.current?.destroy();
       playerRef.current = null;
+      readyRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (songIdRef.current === song.youtubeId) return;
-    songIdRef.current = song.youtubeId;
-    playerRef.current?.loadVideoById(song.youtubeId);
-    setPlaying(true);
-  }, [song.youtubeId, setPlaying]);
+    requestedRef.current = song.youtubeId;
+    if (currentRef.current === song.youtubeId) {
+      // Same track but different song entry — replay from the start.
+      const player = playerRef.current;
+      if (player && readyRef.current) {
+        switchingRef.current = true;
+        try {
+          player.loadVideoById(song.youtubeId);
+          player.playVideo();
+          setPlaying(true);
+        } catch {
+          // ignore
+        }
+        switchingRef.current = false;
+      }
+      return;
+    }
+    loadRequested();
+  }, [song.youtubeId, loadRequested, setPlaying]);
 
   const togglePlay = useCallback(() => {
     const player = playerRef.current;
-    if (!player) return;
+    if (!player || !readyRef.current) return;
     if (playingRef.current) {
       player.pauseVideo();
     } else {
