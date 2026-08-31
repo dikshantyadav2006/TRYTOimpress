@@ -19,7 +19,7 @@ import { useData } from "@/lib/use-data";
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.NODE_ENV === "production"
-    ? "https://trytotry.onrender.com"
+    ? "https://loveme-hazel.vercel.app"
     : "http://localhost:3000");
 
 type Visibility = "visible" | "link" | "hidden";

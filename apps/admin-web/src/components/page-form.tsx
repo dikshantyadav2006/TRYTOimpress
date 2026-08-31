@@ -59,7 +59,7 @@ export function PageForm({ page }: { page?: Page | null }) {
   const SITE_URL =
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.NODE_ENV === "production"
-      ? "https://trytotry.onrender.com"
+      ? "https://loveme-hazel.vercel.app"
       : "http://localhost:3000");
 
   const shareUrl = isEdit && page ? `${SITE_URL}/u/${user?.slug}${sitePagePath(page.slug)}` : null;
