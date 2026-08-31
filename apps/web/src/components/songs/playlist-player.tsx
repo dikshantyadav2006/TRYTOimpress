@@ -93,43 +93,59 @@ export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerPro
       void loadYouTubeScript().then(() => {
         if (disposed || !window.YT || playerRef.current) return;
         const onStateChange = (event: { data: number }) => {
-          if (!window.YT) return;
-          if (event.data === window.YT.PlayerState.ENDED) {
-            setPlayingState(false);
-            onEndedRef.current();
-          } else if (event.data === window.YT.PlayerState.PLAYING) {
-            setPlayingState(true);
-          } else if (event.data === window.YT.PlayerState.PAUSED) {
-            setPlayingState(false);
+          try {
+            if (!window.YT) return;
+            if (event.data === window.YT.PlayerState.ENDED) {
+              setPlayingState(false);
+              onEndedRef.current();
+            } else if (event.data === window.YT.PlayerState.PLAYING) {
+              setPlayingState(true);
+            } else if (event.data === window.YT.PlayerState.PAUSED) {
+              setPlayingState(false);
+            }
+          } catch {
+            // Swallow DOM-related errors from YouTube player to prevent
+            // cascading React reconciliation failures.
           }
         };
-        playerRef.current = new window.YT.Player(containerIdRef.current, {
-          videoId,
-          playerVars: {
-            autoplay: 1,
-            rel: 0,
-            controls: 0,
-            modestbranding: 1,
-            showinfo: 0,
-            iv_load_policy: 3,
-            playsinline: 1,
-            enablejsapi: 1,
-            loop: 0,
-          },
-          events: {
-            onReady: () => {
-              if (!disposed) setPlayingState(true);
+        try {
+          playerRef.current = new window.YT.Player(containerIdRef.current, {
+            videoId,
+            playerVars: {
+              autoplay: 1,
+              rel: 0,
+              controls: 0,
+              modestbranding: 1,
+              showinfo: 0,
+              iv_load_policy: 3,
+              playsinline: 1,
+              enablejsapi: 1,
+              loop: 0,
+              origin: typeof window !== "undefined" ? window.location.origin : undefined,
             },
-            onStateChange,
-            onError: () => {
-              onEndedRef.current();
+            events: {
+              onReady: () => {
+                if (!disposed) setPlayingState(true);
+              },
+              onStateChange,
+              onError: () => {
+                // On error, skip to next song automatically.
+                onEndedRef.current();
+              },
             },
-          },
-        });
+          });
+        } catch {
+          // If player construction fails, skip to the next song.
+          onEndedRef.current();
+        }
       });
       return () => {
         disposed = true;
-        playerRef.current?.destroy();
+        try {
+          playerRef.current?.destroy();
+        } catch {
+          // Ignore destroy errors during cleanup.
+        }
         playerRef.current = null;
       };
       // Mount once; further songs reuse the same player instance.
@@ -139,8 +155,13 @@ export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerPro
     useEffect(() => {
       if (videoIdRef.current === videoId) return;
       videoIdRef.current = videoId;
-      playerRef.current?.loadVideoById(videoId);
-      setPlayingState(true);
+      try {
+        playerRef.current?.loadVideoById(videoId);
+        setPlayingState(true);
+      } catch {
+        // If loadVideoById fails, skip to the next song.
+        onEndedRef.current();
+      }
     }, [videoId, setPlayingState]);
 
     const togglePlay = useCallback(() => {

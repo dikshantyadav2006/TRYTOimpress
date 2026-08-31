@@ -101,7 +101,7 @@ export function PlaylistExperience({
 
   const current = songs[currentIndex];
   const totalCount = songs.length;
-  const hasPrevious = played.length > 0 || repeat !== "off";
+  const hasPrevious = songs.length > 1 || played.length > 0 || repeat !== "off";
 
   useEffect(() => {
     trackPlaylist(siteSlug, `/playlists/${playlist.slug}/plays`);
@@ -136,48 +136,55 @@ export function PlaylistExperience({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songs]);
 
-  const advance = useCallback(() => {
-    if (repeat === "one") return;
+  const advance = useCallback(
+    (forceNext = false) => {
+      if (repeat === "one" && !forceNext) return;
 
-    if (upNext.length > 0) {
-      const nextIdx = upNext[0]!;
-      setPlayed((p) => [...p, currentIndex]);
-      setUpNext((u) => u.slice(1));
-      setCurrentIndex(nextIdx);
-      setFinished(false);
-      setStarted(true);
-      trackSong(songs[nextIdx]?.id ?? "", "plays");
-      return;
-    }
-
-    if (repeat === "all" && songs.length > 0) {
-      const rest = songs.map((_, i) => i).filter((i) => i !== currentIndex);
-      const nextOrder = shuffle ? shuffleArr(rest) : rest;
-      const nextIdx = nextOrder[0];
-      if (nextIdx !== undefined) {
+      if (upNext.length > 0) {
+        const nextIdx = upNext[0]!;
         setPlayed((p) => [...p, currentIndex]);
-        setUpNext(nextOrder.slice(1));
+        setUpNext((u) => u.slice(1));
         setCurrentIndex(nextIdx);
         setFinished(false);
         setStarted(true);
+        setPlayerMounted(true);
+        setPlaying(true);
         trackSong(songs[nextIdx]?.id ?? "", "plays");
         return;
       }
-    }
 
-    setStarted(false);
-    setFinished(true);
-  }, [repeat, upNext, currentIndex, songs, shuffle, trackSong]);
+      if ((repeat === "all" || forceNext) && songs.length > 0) {
+        const rest = songs.map((_, i) => i).filter((i) => i !== currentIndex);
+        const nextOrder = shuffle ? shuffleArr(rest) : rest;
+        const nextIdx = nextOrder[0] ?? (currentIndex + 1) % songs.length;
+        if (nextIdx !== undefined) {
+          setPlayed((p) => [...p, currentIndex]);
+          setUpNext(nextOrder.slice(1));
+          setCurrentIndex(nextIdx);
+          setFinished(false);
+          setStarted(true);
+          setPlayerMounted(true);
+          setPlaying(true);
+          trackSong(songs[nextIdx]?.id ?? "", "plays");
+          return;
+        }
+      }
+
+      setStarted(false);
+      setFinished(true);
+    },
+    [repeat, upNext, currentIndex, songs, shuffle, trackSong],
+  );
 
   const handleEnded = useCallback(() => {
-    advance();
+    advance(false);
   }, [advance]);
 
   const onSkip = useCallback(() => {
     vibrate(8);
     if (songs.length === 0) return;
     if (current) trackSong(current.id, "skips");
-    advance();
+    advance(true);
   }, [advance, current, songs.length, trackSong]);
 
   const onPrev = useCallback(() => {
@@ -191,25 +198,27 @@ export function PlaylistExperience({
       setCurrentIndex(prevIdx);
       setFinished(false);
       setStarted(true);
+      setPlayerMounted(true);
+      setPlaying(true);
       return;
     }
 
-    if (repeat !== "off" && songs.length > 0) {
-      const rest = songs.map((_, i) => i).filter((i) => i !== currentIndex);
-      const nextOrder = shuffle ? shuffleArr(rest) : rest;
-      const lastIdx = nextOrder[nextOrder.length - 1];
-      if (lastIdx !== undefined) {
-        setUpNext((u) => [currentIndex, ...u]);
-        setCurrentIndex(lastIdx);
-        setFinished(false);
-        setStarted(true);
-      }
+    if (songs.length > 1) {
+      const prevIdx = (currentIndex - 1 + songs.length) % songs.length;
+      setUpNext((u) => [currentIndex, ...u]);
+      setCurrentIndex(prevIdx);
+      setFinished(false);
+      setStarted(true);
+      setPlayerMounted(true);
+      setPlaying(true);
       return;
     }
-    // Already at the start: restart the engine so controls reflect reality.
+
     setFinished(false);
     setStarted(true);
-  }, [played, currentIndex, repeat, songs, shuffle]);
+    setPlayerMounted(true);
+    setPlaying(true);
+  }, [played, currentIndex, songs.length]);
 
   const onStart = useCallback(() => {
     vibrate(8);
