@@ -28,7 +28,7 @@ export function ParallaxImage({
   return (
     <div ref={ref} className={cn("relative overflow-hidden", className)}>
       <motion.div style={{ y }} className={cn("h-full w-full", imgClassName)}>
-        <img src={src} alt={alt} className="h-full w-full scale-110 object-cover" {...rest} />
+        <img src={src} alt={alt} className="h-auto w-full object-contain" {...rest} />
       </motion.div>
     </div>
   );

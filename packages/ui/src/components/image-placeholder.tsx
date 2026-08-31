@@ -14,7 +14,7 @@ export function ImagePlaceholder({
       <img
         src={src}
         alt={alt}
-        className={`aspect-square w-full rounded-3xl object-cover ${className ?? ""}`}
+        className={`h-auto w-full rounded-3xl object-contain ${className ?? ""}`}
       />
     );
   }

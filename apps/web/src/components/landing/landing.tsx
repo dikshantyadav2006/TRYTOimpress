@@ -57,7 +57,6 @@ export function Landing({ content }: { content: LandingContent }) {
                 src={heroImageUrl}
                 alt="A little memory of us"
                 eager
-                aspectRatio="4 / 3"
                 imgClassName="rounded-[2rem]"
                 className="rounded-[2rem] shadow-2xl shadow-rose-950/60 ring-1 ring-white/10"
               />

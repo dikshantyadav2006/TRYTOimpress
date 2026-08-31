@@ -316,6 +316,7 @@ export function GalleryGrid({
           className={cn(
             "relative w-full overflow-hidden rounded-2xl border border-white/10 bg-surface transition-all duration-300 hover:border-white/20 hover:shadow-xl hover:shadow-black/25",
             view === "grid" ? "break-inside-avoid" : "flex items-center gap-4 p-3",
+            isExpanded && "border-rose-400/50 ring-1 ring-rose-400/30 shadow-xl shadow-black/30",
           )}
         >
           <div
@@ -409,7 +410,7 @@ export function GalleryGrid({
         </div>
 
         {isExpanded && (
-          <div className="animate-sheet-up z-20 mt-2.5 rounded-2xl border border-white/15 bg-white/95 p-3.5 text-black shadow-2xl backdrop-blur-md transition-all duration-300">
+          <div className="animate-detail-in z-20 mt-2.5 rounded-2xl border border-white/15 bg-white/95 p-3.5 text-black shadow-2xl backdrop-blur-md">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-black/70">Edit Details</span>
               <button

@@ -225,9 +225,9 @@ export function UniformGrid({
             onOpen(indexOf(item));
             vibrate(6);
           }}
-          className={`group relative aspect-square overflow-hidden rounded-2xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 ${tintFor(item.id)}`}
+          className={`group relative overflow-hidden rounded-2xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 ${tintFor(item.id)}`}
         >
-          <Media item={item} className="absolute inset-0 h-full w-full object-contain p-2" />
+          <Media item={item} className="block w-full h-auto object-contain" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <CategoryChip category={item.category} />
           <CaptionOverlay item={item} />

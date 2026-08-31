@@ -37,7 +37,7 @@ export function ImageAsset({
         decoding="async"
         onLoad={() => setLoaded(true)}
         className={cn(
-          aspectRatio ? "h-full w-full object-cover" : "h-auto w-full object-contain",
+          "h-auto w-full object-contain",
           "transition-[opacity,transform] duration-1000",
           loaded ? "opacity-100 scale-100" : "opacity-0 scale-[1.04]",
           imgClassName,

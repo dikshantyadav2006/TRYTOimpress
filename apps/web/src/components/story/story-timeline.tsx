@@ -67,7 +67,6 @@ export function StoryTimeline({ memories }: StoryTimelineProps) {
                         loading="lazy"
                         strength={20}
                         className="rounded-2xl shadow-xl shadow-black/30 ring-1 ring-white/10"
-                        imgClassName="h-52 sm:h-64"
                       />
                     </EditableImage>
                   </ScaleReveal>
