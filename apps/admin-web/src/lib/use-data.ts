@@ -22,9 +22,19 @@ export function useData<T>(path: string) {
     }
   }, [path]);
 
+  const reloadSilently = useCallback(async () => {
+    setError(undefined);
+    try {
+      const body = await get<{ data: T[] }>(path);
+      setData(body.data);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load");
+    }
+  }, [path]);
+
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  return { data, loading, error, reload };
+  return { data, loading, error, reload, reloadSilently };
 }
