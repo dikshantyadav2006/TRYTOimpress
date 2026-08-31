@@ -1,10 +1,15 @@
 export type MusicMood = "love" | "miss-you" | "sad" | "rain" | "night";
 
+export type PlaylistMode = "video" | "audio";
+
+export type PlaylistProvider = "youtube" | "manual";
+
 export interface PlaylistSong {
   id: string;
   title: string;
   artist: string;
   youtubeId: string;
+  thumbnail?: string;
   duration?: number;
   mood?: MusicMood;
   note?: string;
@@ -25,6 +30,9 @@ export interface Playlist {
   slug: string;
   description?: string;
   coverImage?: string;
+  mode: PlaylistMode;
+  provider: PlaylistProvider;
+  providerPlaylistId?: string;
   backgrounds: string[];
   theme: PlaylistTheme;
   quotes: string[];
