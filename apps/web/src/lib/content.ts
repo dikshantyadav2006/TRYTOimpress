@@ -63,6 +63,10 @@ export async function getPage(slug: string, pageSlug: string): Promise<Page | nu
   }
 }
 
+export async function getSitePages(slug: string): Promise<Page[]> {
+  return fetchData<Page[]>(sitePath(slug, "/pages"));
+}
+
 export async function getMemories(slug: string): Promise<Memory[]> {
   return fetchData<Memory[]>(sitePath(slug, "/memories"));
 }

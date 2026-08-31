@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { MusicProvider, MusicToggle } from "@repo/ui";
 
-import { getSiteSettings } from "@/lib/content";
+import { ChapterRail, type ChapterRailItem } from "@/components/chapter/chapter-rail";
+import { getSitePages, getSiteSettings } from "@/lib/content";
 import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -34,18 +35,35 @@ export default async function SiteLayout({
 }: Readonly<{ children: React.ReactNode }> & SitePageProps) {
   const { slug } = await params;
   let backgroundMusicUrl: string | undefined;
+  let chaptersEnabled = false;
+  let chapterItems: ChapterRailItem[] = [];
   try {
     const settings = await getSiteSettings(slug);
     const url = settings.music?.backgroundAudioUrl?.trim();
     if (url) backgroundMusicUrl = url;
+    chaptersEnabled = Boolean(settings.navigation?.chaptersEnabled);
   } catch {
     backgroundMusicUrl = undefined;
+    chaptersEnabled = false;
+  }
+
+  if (chaptersEnabled) {
+    try {
+      const pages = await getSitePages(slug);
+      chapterItems = pages
+        .filter((page) => page.published && page.chapter)
+        .sort((a, b) => a.order - b.order)
+        .map((page) => ({ slug: page.slug, title: page.title }));
+    } catch {
+      chapterItems = [];
+    }
   }
 
   return (
     <MusicProvider {...(backgroundMusicUrl ? { backgroundMusicUrl } : {})}>
       <MusicToggle />
       {children}
+      <ChapterRail slug={slug} items={chapterItems} />
     </MusicProvider>
   );
 }
