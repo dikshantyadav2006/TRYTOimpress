@@ -39,6 +39,7 @@ export function PageForm({ page }: { page?: Page | null }) {
   const [heroImageUrl, setHeroImageUrl] = useState(page?.heroImageUrl ?? "");
   const [order, setOrder] = useState(String(page?.order ?? ""));
   const [published, setPublished] = useState(page?.published ?? true);
+  const [chapter, setChapter] = useState(page?.chapter ?? false);
   const [blocks, setBlocks] = useState<PageBlock[]>(
     page?.blocks?.length ? page.blocks.map((b) => ({ ...b })) : [newBlock()],
   );
@@ -47,7 +48,7 @@ export function PageForm({ page }: { page?: Page | null }) {
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
 
-  useDirtyGuard({ slug, title, subtitle, heroImageUrl, order, published, blocks, ctaLabel, ctaHref });
+  useDirtyGuard({ slug, title, subtitle, heroImageUrl, order, published, chapter, blocks, ctaLabel, ctaHref });
 
   const replaceBlock = (index: number, block: PageBlock) => {
     setBlocks((current) => current.map((b, i) => (i === index ? block : b)));
@@ -88,6 +89,7 @@ export function PageForm({ page }: { page?: Page | null }) {
       blocks: cleanedBlocks,
       ...(order !== "" ? { order: Number(order) } : {}),
       published,
+      chapter,
     };
     if (ctaLabel.trim() && ctaHref.trim()) {
       body.cta = { label: ctaLabel, href: ctaHref };
@@ -140,6 +142,10 @@ export function PageForm({ page }: { page?: Page | null }) {
         <label className="flex cursor-pointer items-center gap-2.5 text-sm">
           <Switch checked={published} onChange={setPublished} label="Published" />
           Published
+        </label>
+        <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+          <Switch checked={chapter} onChange={setChapter} label="Show in chapters" />
+          Show in chapter navigator
         </label>
       </SectionCard>
 
