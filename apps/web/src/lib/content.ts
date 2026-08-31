@@ -9,10 +9,10 @@ import type {
   LovePromise,
   Memory,
   Page,
+  Playlist,
   Question,
   Reason,
   SiteSettings,
-  Song,
   Surprise,
   Wish,
 } from "@repo/shared";
@@ -94,8 +94,30 @@ export async function getQuestions(slug: string): Promise<Question[]> {
   return fetchData<Question[]>(sitePath(slug, "/questions"));
 }
 
-export async function getSongs(slug: string): Promise<Song[]> {
-  return fetchData<Song[]>(sitePath(slug, "/songs"));
+export async function getDefaultSite(): Promise<{ slug: string; name: string } | null> {
+  try {
+    return await fetchData<{ slug: string; name: string }>("/sites/default");
+  } catch (error) {
+    if (error instanceof ContentUnavailableError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function getPlaylists(slug: string): Promise<Playlist[]> {
+  return fetchData<Playlist[]>(sitePath(slug, "/playlists"));
+}
+
+export async function getPlaylist(slug: string, playlistSlug: string): Promise<Playlist | null> {
+  try {
+    return await fetchData<Playlist>(sitePath(slug, `/playlists/${playlistSlug}`));
+  } catch (error) {
+    if (error instanceof ContentUnavailableError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function getReasons(slug: string): Promise<Reason[]> {

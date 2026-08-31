@@ -49,7 +49,7 @@ export default async function SongsPage({ params }: SitePageProps) {
         </p>
       ) : (
         <div className="mx-auto grid max-w-5xl gap-5 px-6 pb-4 sm:grid-cols-2 lg:grid-cols-3">
-          {playlists.map((playlist, index) => (
+          {playlists.map((playlist) => (
             <Link
               key={playlist.id}
               href={`/u/${slug}/music/${playlist.slug}`}
