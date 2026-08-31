@@ -278,3 +278,55 @@ export function getProvider(url: string): PlaylistProviderAdapter {
   if (!provider) throw new PlaylistImportError("unsupported_provider");
   return provider;
 }
+
+export interface ResolvedPlaylistSource {
+  playlistId: string;
+  sourceUrl: string;
+  songs: PlaylistSong[];
+  name?: string;
+  description?: string;
+  coverImage?: string;
+}
+
+/**
+ * Resolves a stored playlist source URL to its current track list. Results are
+ * cached in-memory with a short TTL so repeated public page loads don't
+ * re-scrape YouTube. Throws PlaylistImportError on unresolvable input, and
+ * returns empty songs when the fetch itself fails (so callers can fall back to
+ * their cached snapshot).
+ */
+const sourceCache = new Map<
+  string,
+  { value: ResolvedPlaylistSource | null; expiresAt: number }
+>();
+const SOURCE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+export async function resolvePlaylistSource(sourceUrl: string): Promise<ResolvedPlaylistSource | null> {
+  const playlistId = parseYouTubePlaylistId(sourceUrl);
+  if (!playlistId) throw new PlaylistImportError("invalid_youtube_playlist");
+
+  const cached = sourceCache.get(playlistId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  let resolved: ResolvedPlaylistSource | null = null;
+  try {
+    const provider = new YouTubePlaylistProvider();
+    const imported = await provider.fetch(
+      `https://www.youtube.com/playlist?list=${playlistId}`,
+      "public",
+    );
+    resolved = {
+      playlistId,
+      sourceUrl: `https://www.youtube.com/playlist?list=${playlistId}`,
+      songs: imported.songs,
+      name: imported.name,
+      ...(imported.description ? { description: imported.description } : {}),
+      ...(imported.coverImage ? { coverImage: imported.coverImage } : {}),
+    };
+  } catch {
+    resolved = null;
+  }
+
+  sourceCache.set(playlistId, { value: resolved, expiresAt: Date.now() + SOURCE_CACHE_TTL_MS });
+  return resolved;
+}
