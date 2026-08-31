@@ -11,6 +11,7 @@ import {
   Input,
   Label,
   SectionCard,
+  Switch,
   Textarea,
 } from "@/components/ui";
 import { LoadingState } from "@/components/crud";
@@ -54,6 +55,7 @@ export function SettingsForm() {
   const [loveStartLabel, setLoveStartLabel] = useState("");
   const [birthdayDate, setBirthdayDate] = useState("");
   const [birthdayMessage, setBirthdayMessage] = useState("");
+  const [chaptersEnabled, setChaptersEnabled] = useState(false);
 
   useEffect(() => {
     get<{ data: SiteSettings }>("/settings")
@@ -80,6 +82,7 @@ export function SettingsForm() {
         setLoveStartLabel(data.love?.startLabel ?? "");
         setBirthdayDate(data.birthday?.date ?? "");
         setBirthdayMessage(data.birthday?.message ?? "");
+        setChaptersEnabled(data.navigation?.chaptersEnabled ?? false);
         setLoaded(true);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load settings"));
@@ -109,6 +112,7 @@ export function SettingsForm() {
       loveStartLabel,
       birthdayDate,
       birthdayMessage,
+      chaptersEnabled,
     },
     { enabled: loaded, resetKey: loaded },
   );
@@ -155,6 +159,9 @@ export function SettingsForm() {
         birthday: {
           date: birthdayDate.trim(),
           message: birthdayMessage.trim(),
+        },
+        navigation: {
+          chaptersEnabled,
         },
       });
       setSaved(true);
@@ -411,6 +418,26 @@ export function SettingsForm() {
             />
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Chapter navigator"
+        description="Show a chapter sidebar on the web so visitors can jump between chapters directly."
+      >
+        <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <span>
+            <span className="text-foreground block text-sm font-medium">Show chapter navigator</span>
+            <span className="text-muted-foreground mt-0.5 block text-xs">
+              A sidebar on the right lets visitors switch chapters instantly. Choose which chapters
+              appear from the Pages screen.
+            </span>
+          </span>
+          <Switch
+            checked={chaptersEnabled}
+            onChange={setChaptersEnabled}
+            label="Enable chapter navigator"
+          />
+        </label>
       </SectionCard>
 
       <FormFooter loading={saving} saved={saved} error={error} submitLabel="Save settings" />
