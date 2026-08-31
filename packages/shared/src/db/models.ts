@@ -221,6 +221,7 @@ export interface PlaylistDoc {
   mode: PlaylistMode;
   provider: PlaylistProvider;
   providerPlaylistId?: string;
+  sourceUrl?: string;
   backgrounds: string[];
   theme: PlaylistThemeDoc;
   quotes: string[];

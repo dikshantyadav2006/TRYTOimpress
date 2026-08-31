@@ -30,6 +30,7 @@ export interface PlaylistInput {
   mode?: PlaylistMode;
   provider?: PlaylistProvider;
   providerPlaylistId?: string;
+  sourceUrl?: string;
   backgrounds: string[];
   theme: { overlayColor: string; textColor: string; accentColor: string };
   quotes: string[];
@@ -122,6 +123,7 @@ export class MongoPlaylistRepository {
       ...(input.description ? { description: input.description } : {}),
       ...(input.coverImage ? { coverImage: input.coverImage } : {}),
       ...(input.providerPlaylistId ? { providerPlaylistId: input.providerPlaylistId } : {}),
+      ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
       ...(input.recommendedSlugs?.length ? { recommendedSlugs: [...input.recommendedSlugs] } : {}),
     };
     await playlists().insertOne(doc);
@@ -141,6 +143,7 @@ export class MongoPlaylistRepository {
     if (input.mode !== undefined) patch.mode = input.mode;
     if (input.provider !== undefined) patch.provider = input.provider;
     if (input.providerPlaylistId !== undefined) patch.providerPlaylistId = input.providerPlaylistId;
+    if (input.sourceUrl !== undefined) patch.sourceUrl = input.sourceUrl;
     if (input.recommendedSlugs !== undefined)
       patch.recommendedSlugs = input.recommendedSlugs?.length ? [...input.recommendedSlugs] : [];
     if (input.songs !== undefined) patch.songs = mapSongInputs(input.songs);

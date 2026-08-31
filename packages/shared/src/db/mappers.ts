@@ -324,6 +324,7 @@ export function mapPlaylist(doc: PlaylistDoc): Playlist {
     mode: doc.mode ?? "video",
     provider: doc.provider ?? "manual",
     ...(doc.providerPlaylistId ? { providerPlaylistId: doc.providerPlaylistId } : {}),
+    ...(doc.sourceUrl ? { sourceUrl: doc.sourceUrl } : {}),
     backgrounds: [...(doc.backgrounds ?? [])],
     theme: { ...doc.theme },
     quotes: [...(doc.quotes ?? [])],

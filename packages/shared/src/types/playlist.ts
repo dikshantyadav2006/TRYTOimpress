@@ -33,6 +33,7 @@ export interface Playlist {
   mode: PlaylistMode;
   provider: PlaylistProvider;
   providerPlaylistId?: string;
+  sourceUrl?: string;
   backgrounds: string[];
   theme: PlaylistTheme;
   quotes: string[];
