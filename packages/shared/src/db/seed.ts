@@ -55,6 +55,7 @@ export interface SeedPage {
   cta?: { label: string; href: string } | null;
   order: number;
   published: boolean;
+  chapter?: boolean;
 }
 
 const seedPages: SeedPage[] = [
@@ -75,6 +76,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/gallery" },
     order: 1,
     published: true,
+    chapter: true,
   },
   {
     slug: "gallery",
@@ -93,6 +95,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/reasons" },
     order: 2,
     published: true,
+    chapter: true,
   },
   {
     slug: "reasons",
@@ -111,6 +114,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/songs" },
     order: 3,
     published: true,
+    chapter: true,
   },
   {
     slug: "songs",
@@ -129,6 +133,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/dates" },
     order: 4,
     published: true,
+    chapter: true,
   },
   {
     slug: "dates",
@@ -147,6 +152,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/questions" },
     order: 5,
     published: true,
+    chapter: true,
   },
   {
     slug: "questions",
@@ -165,6 +171,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/love-meter" },
     order: 6,
     published: true,
+    chapter: true,
   },
   {
     slug: "love-meter",
@@ -183,6 +190,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/love-jar" },
     order: 7,
     published: true,
+    chapter: true,
   },
   {
     slug: "love-jar",
@@ -201,6 +209,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/compliments" },
     order: 8,
     published: true,
+    chapter: true,
   },
   {
     slug: "compliments",
@@ -219,6 +228,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/wishes" },
     order: 9,
     published: true,
+    chapter: true,
   },
   {
     slug: "wishes",
@@ -237,6 +247,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/promises" },
     order: 10,
     published: true,
+    chapter: true,
   },
   {
     slug: "promises",
@@ -255,6 +266,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/future" },
     order: 11,
     published: true,
+    chapter: true,
   },
   {
     slug: "future",
@@ -273,6 +285,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/letters" },
     order: 12,
     published: true,
+    chapter: true,
   },
   {
     slug: "letters",
@@ -291,6 +304,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/time-capsule" },
     order: 13,
     published: true,
+    chapter: true,
   },
   {
     slug: "time-capsule",
@@ -309,6 +323,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/scratch-cards" },
     order: 14,
     published: true,
+    chapter: true,
   },
   {
     slug: "scratch-cards",
@@ -327,6 +342,7 @@ const seedPages: SeedPage[] = [
     cta: { label: "Next chapter →", href: "/surprise" },
     order: 15,
     published: true,
+    chapter: true,
   },
   {
     slug: "surprise",
@@ -415,6 +431,7 @@ const seedPages: SeedPage[] = [
     ],
     order: 20,
     published: true,
+    chapter: true,
   },
 ];
 
@@ -445,6 +462,7 @@ export async function seedSite(ownerId: string): Promise<void> {
     };
     if (page.subtitle) set.subtitle = page.subtitle;
     if (page.heroImageUrl) set.heroImageUrl = page.heroImageUrl;
+    if (typeof page.chapter === "boolean") set.chapter = page.chapter;
     await pages().updateOne(
       { ownerId, slug: page.slug },
       {

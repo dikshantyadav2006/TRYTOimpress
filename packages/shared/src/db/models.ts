@@ -113,6 +113,7 @@ export interface PageDoc {
   cta?: { label: string; href: string } | null;
   order: number;
   published: boolean;
+  chapter?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -151,6 +152,9 @@ export interface SiteSettingsDoc {
   birthday: {
     date: string;
     message: string;
+  };
+  navigation: {
+    chaptersEnabled: boolean;
   };
   updatedAt: Date;
 }

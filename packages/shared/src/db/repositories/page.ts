@@ -13,6 +13,7 @@ export interface PageInput {
   cta?: { label: string; href: string } | null;
   order?: number;
   published?: boolean;
+  chapter?: boolean;
 }
 
 export class MongoPageRepository {
@@ -50,6 +51,7 @@ export class MongoPageRepository {
       ...(input.subtitle ? { subtitle: input.subtitle } : {}),
       ...(input.heroImageUrl ? { heroImageUrl: input.heroImageUrl } : {}),
       ...(input.cta ? { cta: input.cta } : {}),
+      ...(typeof input.chapter === "boolean" ? { chapter: input.chapter } : {}),
     };
     await pages().insertOne(doc);
     return mapPage(doc);
@@ -68,6 +70,7 @@ export class MongoPageRepository {
       "blocks",
       "order",
       "published",
+      "chapter",
     ] as const) {
       if (input[key] !== undefined) {
         (patch.$set as Record<string, unknown>)[key] = input[key];

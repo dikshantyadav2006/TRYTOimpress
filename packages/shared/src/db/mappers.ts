@@ -154,6 +154,7 @@ export function mapPage(doc: PageDoc): Page {
     ...(doc.cta ? { cta: { label: doc.cta.label, href: doc.cta.href } } : {}),
     order: doc.order,
     published: doc.published,
+    ...(doc.chapter ? { chapter: doc.chapter } : {}),
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -183,6 +184,9 @@ export function mapSettings(doc: SiteSettingsDoc | null | undefined): SiteSettin
     birthday: {
       date: doc.birthday?.date ?? "",
       message: doc.birthday?.message ?? "",
+    },
+    navigation: {
+      chaptersEnabled: doc.navigation?.chaptersEnabled ?? false,
     },
   };
 }
