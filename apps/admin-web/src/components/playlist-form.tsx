@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Plus, RefreshCw, X } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 
-import type { MusicMood, Playlist, PlaylistMode, PlaylistSong } from "@repo/shared";
+import type { MusicMood, Playlist, PlaylistMode } from "@repo/shared";
 import { slugify } from "@repo/shared";
 import { cn } from "@repo/ui";
 

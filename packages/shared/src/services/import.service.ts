@@ -1,7 +1,6 @@
 import {
   getYouTubeThumbnail,
   isYouTubeUrl,
-  parseYouTubeId,
   parseYouTubePlaylistId,
 } from "../utils/youtube";
 import type { PlaylistMode, PlaylistProvider, PlaylistSong } from "../types/playlist";
