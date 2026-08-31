@@ -399,6 +399,23 @@ const seedPages: SeedPage[] = [
     order: 19,
     published: true,
   },
+  {
+    slug: "birthday",
+    title: "Your Birthday",
+    subtitle: "counting down to the best day of the year",
+    blocks: [
+      {
+        type: "heading",
+        text: "The day the world got a little brighter",
+      },
+      {
+        type: "paragraph",
+        text: "Every year, on your birthday, I get to celebrate the best thing that ever happened to me. This countdown is my way of telling you how much I'm already looking forward to it.",
+      },
+    ],
+    order: 20,
+    published: true,
+  },
 ];
 
 export async function seedSite(ownerId: string): Promise<void> {

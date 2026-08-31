@@ -180,6 +180,10 @@ export function mapSettings(doc: SiteSettingsDoc | null | undefined): SiteSettin
       startDate: doc.love?.startDate ?? "",
       startLabel: doc.love?.startLabel ?? "the day we met",
     },
+    birthday: {
+      date: doc.birthday?.date ?? "",
+      message: doc.birthday?.message ?? "",
+    },
   };
 }
 

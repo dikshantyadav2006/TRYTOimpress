@@ -28,6 +28,7 @@ export { SHARE_PERMISSIONS } from "./share";
 export type { User } from "./user";
 export type { AdminRole, AdminUser, Site } from "./admin";
 export type {
+  BirthdaySettings,
   LandingSettings,
   LoveSettings,
   MusicSettings,

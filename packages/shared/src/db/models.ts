@@ -148,6 +148,10 @@ export interface SiteSettingsDoc {
     startDate: string;
     startLabel: string;
   };
+  birthday: {
+    date: string;
+    message: string;
+  };
   updatedAt: Date;
 }
 
