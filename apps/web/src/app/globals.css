@@ -8,3 +8,31 @@
     display: none;
   }
 }
+
+@keyframes web-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes web-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: web-fade-in 0.2s ease-out both;
+  }
+
+  .animate-sheet-up {
+    animation: web-sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
