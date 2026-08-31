@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Check,
   CheckSquare,
@@ -42,15 +42,15 @@ function isVideo(url: string): boolean {
 }
 
 const COLUMN_CLASSES: Record<number, string> = {
-  2: "grid-cols-2 sm:grid-cols-2",
-  3: "grid-cols-2 sm:grid-cols-3",
-  4: "grid-cols-2 sm:grid-cols-4",
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
 };
 
 function TileMedia({ url, caption }: { url?: string | undefined; caption: string }) {
   if (!url) {
     return (
-      <div className="flex aspect-square w-full items-center justify-center bg-white/5 text-xs text-white/30">
+      <div className="flex aspect-video w-full items-center justify-center bg-white/5 text-xs text-white/30">
         No media
       </div>
     );
@@ -63,13 +63,18 @@ function TileMedia({ url, caption }: { url?: string | undefined; caption: string
         loop
         playsInline
         preload="metadata"
-        className="h-full w-full object-contain"
+        className="w-full h-auto max-h-[75vh] object-contain block bg-black/20"
       />
     );
   }
   return (
     // eslint-disable-next-line @next/next/no-img-element -- gallery media is dynamic from DB
-    <img src={url} alt={caption || "gallery item"} loading="lazy" className="h-full w-full object-cover" />
+    <img
+      src={url}
+      alt={caption || "gallery item"}
+      loading="lazy"
+      className="w-full h-auto block object-contain transition-transform duration-500 ease-out group-hover:scale-[1.02]"
+    />
   );
 }
 
@@ -100,7 +105,6 @@ export function GalleryGrid({
   const replaceTargetRef = useRef<string | null>(null);
 
   const dragIdRef = useRef<string | null>(null);
-  const dragIndexRef = useRef(-1);
   const [overId, setOverId] = useState<string | null>(null);
 
   const setBusyFlag = (id: string) => setBusy((s) => new Set(s).add(id));
@@ -198,7 +202,12 @@ export function GalleryGrid({
   };
 
   const onDrop = (targetId: string) => {
-    const from = dragIndexRef.current;
+    const fromId = dragIdRef.current;
+    if (!fromId || fromId === targetId) {
+      setOverId(null);
+      return;
+    }
+    const from = images.findIndex((i) => i.id === fromId);
     const targetIndex = images.findIndex((i) => i.id === targetId);
     setOverId(null);
     if (from < 0 || targetIndex < 0 || from === targetIndex) return;
@@ -225,9 +234,9 @@ export function GalleryGrid({
           aria-label="Edit caption and category"
           title="Edit caption and category"
           className={cn(
-            "glass flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+            "glass flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 hover:scale-105 active:scale-95",
             detailId === image.id
-              ? "bg-white text-black"
+              ? "bg-white text-black shadow-lg"
               : "hover:bg-white/90 text-white hover:text-black",
           )}
         >
@@ -240,7 +249,7 @@ export function GalleryGrid({
           disabled={saving}
           aria-label="Delete"
           title="Delete"
-          className="glass hover:bg-rose-500/90 flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors disabled:opacity-50"
+          className="glass hover:bg-rose-500/90 flex h-9 w-9 items-center justify-center rounded-full text-white transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
         >
           {saving ? <Spinner className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
         </button>
@@ -251,7 +260,7 @@ export function GalleryGrid({
           disabled={saving}
           aria-label="Duplicate"
           title="Duplicate (same settings)"
-          className="glass hover:bg-white/90 flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:text-black disabled:opacity-50"
+          className="glass hover:bg-white/90 flex h-9 w-9 items-center justify-center rounded-full text-white transition-all duration-200 hover:scale-105 active:scale-95 hover:text-black disabled:opacity-50"
         >
           <Copy className="h-4 w-4" />
         </button>
@@ -265,7 +274,7 @@ export function GalleryGrid({
           disabled={saving || isReplacing}
           aria-label="Replace media"
           title="Replace photo or video"
-          className="glass hover:bg-white/90 flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:text-black disabled:opacity-50"
+          className="glass hover:bg-white/90 flex h-9 w-9 items-center justify-center rounded-full text-white transition-all duration-200 hover:scale-105 active:scale-95 hover:text-black disabled:opacity-50"
         >
           {isReplacing ? <Spinner className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
         </button>
@@ -277,9 +286,9 @@ export function GalleryGrid({
           aria-label={image.featured ? "Unfeature" : "Feature"}
           title={image.featured ? "Featured" : "Mark as featured"}
           className={cn(
-            "glass flex h-9 w-9 items-center justify-center rounded-full transition-colors disabled:opacity-50",
+            "glass flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50",
             image.featured
-              ? "bg-amber-400 text-black"
+              ? "bg-amber-400 text-black shadow-lg"
               : "hover:bg-amber-400/90 text-white hover:text-black",
           )}
         >
@@ -294,9 +303,9 @@ export function GalleryGrid({
     const isExpanded = detailId === image.id;
     const draft = drafts[image.id];
     const initDrag = (event: React.DragEvent) => {
-      dragIndexRef.current = index;
       dragIdRef.current = image.id;
       event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", image.id);
     };
 
     const selectMode = Boolean(selecting && selected && onToggle);
@@ -305,14 +314,14 @@ export function GalleryGrid({
       <>
         <div
           className={cn(
-            "relative w-full overflow-hidden rounded-2xl border border-white/10 bg-surface",
+            "relative w-full overflow-hidden rounded-2xl border border-white/10 bg-surface transition-all duration-300 hover:border-white/20 hover:shadow-xl hover:shadow-black/25",
             view === "grid" ? "break-inside-avoid" : "flex items-center gap-4 p-3",
           )}
         >
           <div
             className={cn(
               "relative overflow-hidden",
-              view === "grid" ? "aspect-[4/3] w-full" : "h-20 w-20 shrink-0 rounded-xl",
+              view === "grid" ? "w-full" : "h-20 w-20 shrink-0 rounded-xl",
             )}
           >
             <TileMedia url={image.imageUrl} caption={image.caption} />
@@ -322,7 +331,7 @@ export function GalleryGrid({
                 onClick={() => toggleDetail(image.id)}
                 title="Edit category"
                 className={cn(
-                  "absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white shadow transition-all hover:brightness-110",
+                  "absolute left-2.5 top-2.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white shadow-md backdrop-blur-md transition-all hover:scale-105 hover:brightness-110",
                   categoryClasses(image.category),
                   detailId === image.id && "opacity-0",
                 )}
@@ -331,7 +340,7 @@ export function GalleryGrid({
               </button>
             )}
             {!selectMode && image.featured && (
-              <span className="absolute right-2 top-2 rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-black shadow">
+              <span className="absolute right-2.5 top-2.5 rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-black shadow-md backdrop-blur-md">
                 ★
               </span>
             )}
@@ -346,11 +355,17 @@ export function GalleryGrid({
             </div>
           )}
 
+          {view === "grid" && image.caption && (
+            <div className="px-3.5 py-2.5 text-xs text-white/75 font-medium line-clamp-2 border-t border-white/5 bg-white/[0.02]">
+              {image.caption}
+            </div>
+          )}
+
           {!selectMode && (
             <div
               className={cn(
-                "absolute right-2 bottom-2 left-2 z-10 flex items-center gap-1.5 p-1",
-                view === "grid" ? "opacity-0 transition-opacity duration-200 group-hover:opacity-100" : "static",
+                "absolute right-2 bottom-2 left-2 z-10 flex items-center gap-1.5 p-1 transition-opacity duration-200",
+                view === "grid" ? "opacity-0 group-hover:opacity-100 backdrop-blur-sm rounded-xl bg-black/40" : "static",
               )}
             >
               {view === "grid" && (
@@ -359,15 +374,12 @@ export function GalleryGrid({
                   role="button"
                   aria-label="Drag to reorder"
                   title="Drag to reorder"
-                  onDragStart={(event) => {
-                    initDrag(event);
-                    event.dataTransfer.setData("text/plain", image.id);
-                  }}
+                  onDragStart={initDrag}
                   onDragEnd={() => {
                     dragIdRef.current = null;
                     setOverId(null);
                   }}
-                  className="glass hover:bg-white/90 flex h-9 w-9 cursor-grab items-center justify-center rounded-full text-white active:cursor-grabbing"
+                  className="glass hover:bg-white/90 flex h-9 w-9 cursor-grab items-center justify-center rounded-full text-white active:cursor-grabbing transition-transform hover:scale-105"
                 >
                   <GripVertical className="h-4 w-4" />
                 </span>
@@ -381,7 +393,7 @@ export function GalleryGrid({
               onClick={() => onToggle?.(image.id)}
               aria-label={selected?.has(image.id) ? "Deselect" : "Select"}
               className={cn(
-                "absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full shadow transition-colors",
+                "absolute right-2.5 top-2.5 z-10 flex h-9 w-9 items-center justify-center rounded-full shadow-lg backdrop-blur-md transition-all hover:scale-105",
                 selected?.has(image.id)
                   ? "bg-rose-500 text-white"
                   : "glass text-white hover:bg-white/90 hover:text-black",
@@ -397,16 +409,16 @@ export function GalleryGrid({
         </div>
 
         {isExpanded && (
-          <div className="animate-sheet-up z-20 mt-2 rounded-2xl border border-white/15 bg-white/95 p-3 text-black shadow-xl">
+          <div className="animate-sheet-up z-20 mt-2.5 rounded-2xl border border-white/15 bg-white/95 p-3.5 text-black shadow-2xl backdrop-blur-md transition-all duration-300">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider">Details</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-black/70">Edit Details</span>
               <button
                 type="button"
                 onClick={() => toggleDetail(image.id)}
                 aria-label="Close details"
-                className="rounded-lg p-1 transition-colors hover:bg-black/5"
+                className="rounded-lg p-1 transition-colors hover:bg-black/10"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4 text-black/70" />
               </button>
             </div>
 
@@ -414,7 +426,7 @@ export function GalleryGrid({
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-black/50">
                 Category
               </p>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {CATEGORIES.map((category) => {
                   const active = category.value === image.category;
                   return (
@@ -426,7 +438,7 @@ export function GalleryGrid({
                       className={cn(
                         "rounded-xl px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-all",
                         active
-                          ? cn(category.className, "text-white shadow")
+                          ? cn(category.className, "text-white shadow-sm")
                           : "bg-black/5 text-black/60 hover:bg-black/10",
                       )}
                     >
@@ -450,10 +462,10 @@ export function GalleryGrid({
                 if (event.key === "Escape") toggleDetail(image.id);
               }}
               placeholder="Add a caption…"
-              className="mb-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-rose-400"
+              className="mb-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
             />
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => {
@@ -464,7 +476,7 @@ export function GalleryGrid({
                   });
                   toggleDetail(image.id);
                 }}
-                className="rounded-full border border-black/10 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-black/5"
+                className="rounded-full border border-black/10 px-3.5 py-1.5 text-xs font-medium transition-colors hover:bg-black/5"
               >
                 Cancel
               </button>
@@ -472,7 +484,7 @@ export function GalleryGrid({
                 type="button"
                 onClick={() => void saveCaption(image)}
                 disabled={saving}
-                className="inline-flex items-center gap-1 rounded-full bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-600 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-full bg-rose-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-rose-600 hover:shadow disabled:opacity-50"
               >
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 Save
@@ -502,10 +514,9 @@ export function GalleryGrid({
         }}
         role={selectMode ? "button" : undefined}
         className={cn(
-          "group relative",
-          view === "grid" ? "mb-4" : "mb-3",
+          "group relative transition-transform duration-200",
           selectMode && "cursor-pointer",
-          isOver && "ring-2 ring-rose-400 ring-offset-2 ring-offset-black",
+          isOver && "ring-2 ring-rose-400 ring-offset-2 ring-offset-black rounded-2xl scale-[1.01]",
           overId === image.id && "opacity-90",
         )}
       >
@@ -513,6 +524,18 @@ export function GalleryGrid({
       </div>
     );
   };
+
+  const columnBuckets = useMemo(() => {
+    const count = Number(columns) || 2;
+    const cols: { image: GalleryImage; index: number }[][] = Array.from(
+      { length: count },
+      () => [],
+    );
+    images.forEach((image, index) => {
+      cols[index % count]?.push({ image, index });
+    });
+    return cols;
+  }, [images, columns]);
 
   return (
     <div>
@@ -531,11 +554,22 @@ export function GalleryGrid({
       />
 
       {view === "grid" ? (
-        <div className={cn("grid gap-4 sm:gap-5", COLUMN_CLASSES[columns] ?? COLUMN_CLASSES[2])}>
-          {images.map((image, index) => renderTile(image, index))}
+        <div
+          className={cn(
+            "grid gap-4 sm:gap-5 items-start",
+            COLUMN_CLASSES[columns] ?? COLUMN_CLASSES[2],
+          )}
+        >
+          {columnBuckets.map((colItems, colIdx) => (
+            <div key={colIdx} className="flex flex-col gap-4 min-w-0">
+              {colItems.map(({ image, index }) => renderTile(image, index))}
+            </div>
+          ))}
         </div>
       ) : (
-        <div>{images.map((image, index) => renderTile(image, index))}</div>
+        <div className="space-y-3">
+          {images.map((image, index) => renderTile(image, index))}
+        </div>
       )}
 
       {confirmDelete && (

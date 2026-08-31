@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { type LucideIcon, LayoutGrid, List, Upload } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { type LucideIcon, LayoutGrid, List, Loader2, Upload } from "lucide-react";
 
 import type { GalleryCategory, GalleryImage } from "@repo/shared";
 
@@ -15,9 +15,17 @@ import {
 import { SearchInput, SegmentedControl } from "@/components/ui";
 import { BulkBar, SelectAllButton, SelectButton, bulkDelete, useBulkSelection } from "@/components/bulk";
 import { GalleryGrid } from "@/components/gallery-grid";
-import { useData } from "@/lib/use-data";
-import { put } from "@/lib/api";
+import { ApiError, get, put } from "@/lib/api";
 import { useToast } from "@/components/toast";
+
+const PAGE_SIZE = 24;
+
+interface GalleryFeedResponse {
+  items: GalleryImage[];
+  total: number;
+  hasMore: boolean;
+  nextPage: number | null;
+}
 
 const CATEGORY_OPTIONS: { value: GalleryCategory; label: string }[] = [
   { value: "moment", label: "Moment" },
@@ -45,13 +53,76 @@ const COLUMN_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export default function GalleryPage() {
-  const { data: images, loading, error, reloadSilently } = useData<GalleryImage>("/gallery");
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextPage, setNextPage] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string>();
+
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [bulkCategory, setBulkCategory] = useState<GalleryCategory>("moment");
   const [view, setView] = useState<GalleryView>("grid");
   const [columns, setColumns] = useState<GalleryColumns>(2);
   const { showToast } = useToast();
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const fetchPage = useCallback(async (pageToLoad: number, append = false) => {
+    try {
+      const response = await get<{ data: GalleryFeedResponse }>(
+        `/gallery?page=${pageToLoad}&pageSize=${PAGE_SIZE}`,
+      );
+      const feed = response.data;
+      setImages((current) => {
+        if (!append) return feed.items;
+        const existingIds = new Set(current.map((item) => item.id));
+        const newItems = feed.items.filter((item) => !existingIds.has(item.id));
+        return [...current, ...newItems];
+      });
+      setHasMore(feed.hasMore);
+      setNextPage(feed.nextPage);
+      setError(undefined);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load gallery images");
+    }
+  }, []);
+
+  const loadInitial = useCallback(async () => {
+    setLoading(true);
+    await fetchPage(1, false);
+    setLoading(false);
+  }, [fetchPage]);
+
+  const reloadSilently = useCallback(async () => {
+    await fetchPage(1, false);
+  }, [fetchPage]);
+
+  useEffect(() => {
+    void loadInitial();
+  }, [loadInitial]);
+
+  const loadNext = useCallback(async () => {
+    if (loading || loadingMore || !hasMore || nextPage === null) return;
+    setLoadingMore(true);
+    await fetchPage(nextPage, true);
+    setLoadingMore(false);
+  }, [loading, loadingMore, hasMore, nextPage, fetchPage]);
+
+  useEffect(() => {
+    const element = sentinelRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadNext();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [loadNext]);
 
   useEffect(() => {
     const storedView = window.localStorage.getItem(VIEW_KEY);
@@ -86,7 +157,7 @@ export default function GalleryPage() {
   const bulk = useBulkSelection(sorted);
 
   if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
+  if (error && images.length === 0) return <ErrorState message={error} />;
 
   const onBulkDelete = async () => {
     setDeleting(true);
@@ -179,15 +250,28 @@ export default function GalleryPage() {
           hrefLabel="Add image"
         />
       ) : (
-        <GalleryGrid
-          images={sorted}
-          view={view}
-          columns={columns}
-          onChanged={() => void reloadSilently()}
-          selecting={bulk.selecting}
-          selected={bulk.selected}
-          onToggle={bulk.toggle}
-        />
+        <>
+          <GalleryGrid
+            images={sorted}
+            view={view}
+            columns={columns}
+            onChanged={() => void reloadSilently()}
+            selecting={bulk.selecting}
+            selected={bulk.selected}
+            onToggle={bulk.toggle}
+          />
+          <div ref={sentinelRef} className="h-10 w-full" />
+          {loadingMore && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-rose-400" />
+            </div>
+          )}
+          {!hasMore && sorted.length >= PAGE_SIZE && (
+            <p className="py-6 text-center text-xs font-semibold uppercase tracking-wider text-white/40">
+              All photos loaded ({sorted.length})
+            </p>
+          )}
+        </>
       )}
 
       {bulk.selecting && (

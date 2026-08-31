@@ -142,7 +142,7 @@ export function MasonryGrid({
               loading="lazy"
               decoding="async"
               style={{ transitionDelay: `${(position % 4) * 60}ms` }}
-              className="w-full transition-transform duration-500 group-hover:scale-[1.03]"
+              className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.03]"
             />
           )}
           <CategoryChip category={item.category} />
@@ -285,7 +285,7 @@ export function PolaroidGrid({
                 alt={item.alt}
                 loading="lazy"
                 decoding="async"
-                className="w-full transition-transform duration-500 group-hover:scale-[1.03]"
+                className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.03]"
               />
             )}
           </span>
