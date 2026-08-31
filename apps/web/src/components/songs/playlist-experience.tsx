@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   ChevronLeft,
   Heart,
+  Loader2,
   Pause,
   Play,
   RefreshCw,
@@ -94,6 +95,10 @@ export function PlaylistExperience({
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
 
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const lastTrackChangeRef = useRef(0);
+  const TRACK_CHANGE_COOLDOWN = 800;
+
   const playerRef = useRef<PlaylistPlayerHandle>(null);
   const audioPlayerRef = useRef<PlaylistAudioPlayerHandle>(null);
 
@@ -181,15 +186,24 @@ export function PlaylistExperience({
   }, [advance]);
 
   const onSkip = useCallback(() => {
+    if (isTransitioning) return;
+    if (Date.now() - lastTrackChangeRef.current < TRACK_CHANGE_COOLDOWN) return;
     vibrate(8);
     if (songs.length === 0) return;
     if (current) trackSong(current.id, "skips");
+    lastTrackChangeRef.current = Date.now();
+    setIsTransitioning(true);
     advance(true);
-  }, [advance, current, songs.length, trackSong]);
+  }, [advance, current, songs.length, trackSong, isTransitioning]);
 
   const onPrev = useCallback(() => {
+    if (isTransitioning) return;
+    if (Date.now() - lastTrackChangeRef.current < TRACK_CHANGE_COOLDOWN) return;
     vibrate(8);
     if (songs.length === 0) return;
+
+    lastTrackChangeRef.current = Date.now();
+    setIsTransitioning(true);
 
     if (played.length > 0) {
       const prevIdx = played[played.length - 1]!;
@@ -218,20 +232,25 @@ export function PlaylistExperience({
     setStarted(true);
     setPlayerMounted(true);
     setPlaying(true);
-  }, [played, currentIndex, songs.length]);
+  }, [played, currentIndex, songs.length, isTransitioning]);
 
   const onStart = useCallback(() => {
+    if (isTransitioning) return;
     vibrate(8);
     if (!current) return;
     setStarted(true);
     setPlayerMounted(true);
     setPlaying(true);
     trackSong(current.id, "plays");
-  }, [current, trackSong]);
+  }, [current, trackSong, isTransitioning]);
 
   const onPlayAgain = useCallback(() => {
+    if (isTransitioning) return;
+    if (Date.now() - lastTrackChangeRef.current < TRACK_CHANGE_COOLDOWN) return;
     vibrate(8);
     if (songs.length === 0) return;
+    lastTrackChangeRef.current = Date.now();
+    setIsTransitioning(true);
     const rest = songs.map((_, i) => i).slice(1);
     setUpNext(shuffle ? shuffleArr(rest) : rest);
     setPlayed([]);
@@ -241,7 +260,7 @@ export function PlaylistExperience({
     setPlayerMounted(true);
     setPlaying(true);
     trackSong(songs[0]!.id, "plays");
-  }, [songs, shuffle, trackSong]);
+  }, [songs, shuffle, trackSong, isTransitioning]);
 
   const toggleShuffle = useCallback(() => {
     vibrate(6);
@@ -314,8 +333,14 @@ export function PlaylistExperience({
   } as React.CSSProperties;
 
   const togglePlay = useCallback(() => {
+    if (isTransitioning) return;
     (isAudio ? audioPlayerRef : playerRef).current?.togglePlay();
-  }, [isAudio]);
+  }, [isAudio, isTransitioning]);
+
+  const handlePlayingChange = useCallback((playing: boolean) => {
+    setPlaying(playing);
+    if (playing) setIsTransitioning(false);
+  }, []);
 
   const currentArtwork = current?.thumbnail ?? playlist.coverImage;
 
@@ -484,7 +509,8 @@ export function PlaylistExperience({
                           accentColor={accentVar}
                           textColor={textVar}
                           onEnded={handleEnded}
-                          onPlayingChange={setPlaying}
+                          onPlayingChange={handlePlayingChange}
+                          onTransitionChange={setIsTransitioning}
                         />
                       </div>
                     ) : (
@@ -494,7 +520,8 @@ export function PlaylistExperience({
                             ref={playerRef}
                             videoId={current.youtubeId}
                             onEnded={handleEnded}
-                            onPlayingChange={setPlaying}
+                            onPlayingChange={handlePlayingChange}
+                            onTransitionChange={setIsTransitioning}
                           />
                         </div>
                         <h1 className="mt-3 max-w-xl shrink-0 truncate font-serif text-2xl text-[var(--pl-text)] sm:text-3xl">
@@ -521,6 +548,15 @@ export function PlaylistExperience({
                         <Play className="ml-1 h-8 w-8 fill-current" />
                       </span>
                     </button>
+                  )}
+
+                  {isTransitioning && (
+                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/45 backdrop-blur-sm">
+                      <Loader2 className="h-9 w-9 animate-spin text-white" />
+                      <p className="font-serif text-sm text-white/80">
+                        Loading next song...
+                      </p>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -580,7 +616,7 @@ export function PlaylistExperience({
                 <button
                   type="button"
                   onClick={onPrev}
-                  disabled={!hasPrevious}
+                  disabled={!hasPrevious || isTransitioning}
                   aria-label="Previous song"
                   className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -589,8 +625,9 @@ export function PlaylistExperience({
                 <button
                   type="button"
                   onClick={togglePlay}
+                  disabled={isTransitioning}
                   aria-label="Play or pause"
-                  className="flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white/20 transition-transform hover:scale-105 active:scale-95"
+                  className="flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white/20 transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                   style={{ backgroundColor: accentVar }}
                 >
                   {playing ? (
@@ -602,8 +639,9 @@ export function PlaylistExperience({
                 <button
                   type="button"
                   onClick={onSkip}
+                  disabled={isTransitioning}
                   aria-label="Skip to next song"
-                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <SkipForward className="h-5 w-5 fill-current" />
                 </button>

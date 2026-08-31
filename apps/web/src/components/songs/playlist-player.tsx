@@ -5,7 +5,14 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 declare global {
   interface Window {
     YT?: {
-      PlayerState: { ENDED: number; PLAYING: number; PAUSED: number };
+      PlayerState: {
+        ENDED: number;
+        PLAYING: number;
+        PAUSED: number;
+        CUED: number;
+        BUFFERING: number;
+        UNSTARTED: number;
+      };
       Player: new (elementId: string, options: YtPlayerOptions) => YtPlayer;
     };
     onYouTubeIframeAPIReady?: () => void;
@@ -18,7 +25,7 @@ interface YtPlayerOptions {
   events?: {
     onReady?: () => void;
     onStateChange?: (event: { data: number }) => void;
-    onError?: () => void;
+    onError?: (event: { data: number }) => void;
   };
 }
 
@@ -28,12 +35,6 @@ interface YtPlayer {
   pauseVideo: () => void;
   destroy: () => void;
   getPlayerState: () => number;
-}
-
-interface YtPlayerState {
-  ENDED: number;
-  PLAYING: number;
-  PAUSED: number;
 }
 
 let youtubeScriptPromise: Promise<void> | null = null;
@@ -66,47 +67,57 @@ function loadYouTubeScript(): Promise<void> {
 export interface PlaylistPlayerHandle {
   togglePlay: () => void;
   isPlaying: () => boolean;
+  isTransitioning: () => boolean;
 }
 
 export interface PlaylistPlayerProps {
   videoId: string;
   onEnded: () => void;
   onPlayingChange?: (playing: boolean) => void;
+  onTransitionChange?: (transitioning: boolean) => void;
 }
 
 export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerProps>(
-  function PlaylistPlayer({ videoId, onEnded, onPlayingChange }, ref) {
+  function PlaylistPlayer({ videoId, onEnded, onPlayingChange, onTransitionChange }, ref) {
     const containerIdRef = useRef<string>(`yt-${Math.random().toString(36).slice(2, 10)}`);
     const playerRef = useRef<YtPlayer | null>(null);
-    const ytStatesRef = useRef<YtPlayerState | null>(null);
     const requestedVideoRef = useRef<string>(videoId);
     const currentVideoRef = useRef<string | null>(null);
     const readyRef = useRef(false);
     const switchingRef = useRef(false);
     const onEndedRef = useRef(onEnded);
     const onPlayingChangeRef = useRef(onPlayingChange);
+    const onTransitionChangeRef = useRef(onTransitionChange);
     const playerStateRef = useRef<"playing" | "paused" | "ended">("paused");
+    const retryTimerRef = useRef<number | undefined>(undefined);
     const [playing, setPlaying] = useState(true);
 
     onEndedRef.current = onEnded;
     onPlayingChangeRef.current = onPlayingChange;
+    onTransitionChangeRef.current = onTransitionChange;
 
     const setPlayingState = useCallback((next: boolean) => {
       setPlaying(next);
       onPlayingChangeRef.current?.(next);
     }, []);
 
-    // Keep track of the latest desired video id as the prop changes.
+    const setTransitioning = useCallback((value: boolean) => {
+      switchingRef.current = value;
+      onTransitionChangeRef.current?.(value);
+    }, []);
+
     useEffect(() => {
       requestedVideoRef.current = videoId;
     }, [videoId]);
 
-    // Load the desired video once the player is ready, and ensure it plays.
     const loadRequested = useCallback(() => {
       const player = playerRef.current;
       const id = requestedVideoRef.current;
       if (!player || !readyRef.current || id == null) return;
-      switchingRef.current = true;
+
+      if (switchingRef.current) return;
+
+      setTransitioning(true);
       currentVideoRef.current = id;
       try {
         player.loadVideoById(id);
@@ -114,46 +125,50 @@ export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerPro
         setPlayingState(true);
         playerStateRef.current = "playing";
       } catch {
-        // Ignore transient API errors during a switch; the track change will be
-        // recalculated via onStateChange. Scheduling a retry keeps things robust.
-        window.setTimeout(() => {
-          if (requestedVideoRef.current !== id) return;
+        if (requestedVideoRef.current !== id) {
+          setTransitioning(false);
+          return;
+        }
+        if (retryTimerRef.current !== undefined) window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = undefined;
+          if (requestedVideoRef.current !== id || !playerRef.current || !readyRef.current) {
+            setTransitioning(false);
+            return;
+          }
           try {
-            player.loadVideoById(id);
-            player.playVideo();
+            playerRef.current.loadVideoById(id);
+            playerRef.current.playVideo();
             setPlayingState(true);
           } catch {
-            // leave it; onError/onStateChange will settle state
+            setTransitioning(false);
           }
-        }, 400);
+        }, 500);
       }
-      switchingRef.current = false;
-    }, [setPlayingState]);
+    }, [setPlayingState, setTransitioning]);
 
     useEffect(() => {
       let disposed = false;
-      let retryTimer: number | undefined;
       void loadYouTubeScript().then(() => {
         if (disposed || !window.YT || playerRef.current) return;
         const states = window.YT.PlayerState;
-        ytStatesRef.current = states;
         const onStateChange = (event: { data: number }) => {
-          try {
-            if (!ytStatesRef.current) return;
-            if (event.data === ytStatesRef.current.ENDED) {
-              playerStateRef.current = "ended";
-              setPlayingState(false);
-              onEndedRef.current();
-            } else if (event.data === ytStatesRef.current.PLAYING) {
-              playerStateRef.current = "playing";
-              setPlayingState(true);
-            } else if (event.data === ytStatesRef.current.PAUSED) {
-              playerStateRef.current = "paused";
-              setPlayingState(false);
-            }
-          } catch {
-            // Swallow DOM-related errors from YouTube player to prevent
-            // cascading React reconciliation failures.
+          if (disposed) return;
+          if (event.data === states.ENDED) {
+            playerStateRef.current = "ended";
+            setTransitioning(false);
+            setPlayingState(false);
+            onEndedRef.current();
+          } else if (event.data === states.PLAYING) {
+            playerStateRef.current = "playing";
+            setTransitioning(false);
+            setPlayingState(true);
+          } else if (event.data === states.PAUSED) {
+            playerStateRef.current = "paused";
+            setTransitioning(false);
+            setPlayingState(false);
+          } else if (event.data === states.BUFFERING || event.data === states.CUED) {
+            playerStateRef.current = "paused";
           }
         };
         try {
@@ -169,7 +184,7 @@ export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerPro
               playsinline: 1,
               enablejsapi: 1,
               loop: 0,
-              origin: typeof window !== "undefined" ? window.location.origin : undefined,
+              origin: "*",
             },
             events: {
               onReady: () => {
@@ -179,28 +194,31 @@ export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerPro
                 loadRequested();
               },
               onStateChange,
-              onError: () => {
-                // Only auto-advance when the error concerns the video the user
-                // actually asked for and the player isn't mid-switch. Ignoring
-                // errors during a track change prevents skipping two songs.
-                if (switchingRef.current || !readyRef.current) return;
-                if (
-                  currentVideoRef.current == null ||
-                  currentVideoRef.current === requestedVideoRef.current
-                ) {
+              onError: (event: { data: number }) => {
+                if (disposed) return;
+                const errCode = event.data;
+                const vid = currentVideoRef.current;
+                console.error(
+                  `[YT Player Error] code=${errCode} video=${vid} requested=${requestedVideoRef.current}`,
+                );
+                if (switchingRef.current || !readyRef.current) {
+                  setTransitioning(false);
+                  return;
+                }
+                if (vid == null || vid === requestedVideoRef.current) {
                   onEndedRef.current();
                 }
               },
             },
           });
         } catch {
-          // If player construction fails, skip to the next song once.
+          setTransitioning(false);
           onEndedRef.current();
         }
       });
       return () => {
         disposed = true;
-        if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+        if (retryTimerRef.current !== undefined) window.clearTimeout(retryTimerRef.current);
         try {
           playerRef.current?.destroy();
         } catch {
@@ -209,37 +227,34 @@ export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerPro
         playerRef.current = null;
         readyRef.current = false;
       };
-      // Mount once; further songs reuse the same player instance.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // React to videoId changes. If the player isn't ready yet (rapid skip right
-    // after start), stash the id and it will be loaded once onReady fires.
     useEffect(() => {
       requestedVideoRef.current = videoId;
+      if (switchingRef.current) return;
       if (currentVideoRef.current === videoId) {
-        // Same video but the track changed — replay it from the start.
         const player = playerRef.current;
         if (player && readyRef.current) {
-          switchingRef.current = true;
+          setTransitioning(true);
+          currentVideoRef.current = videoId;
           try {
             player.loadVideoById(videoId);
             player.playVideo();
             setPlayingState(true);
             playerStateRef.current = "playing";
           } catch {
-            // ignore
+            // onStateChange will handle
           }
-          switchingRef.current = false;
         }
         return;
       }
       loadRequested();
-    }, [videoId, loadRequested, setPlayingState]);
+    }, [videoId, loadRequested, setPlayingState, setTransitioning]);
 
     const togglePlay = useCallback(() => {
       const player = playerRef.current;
-      if (!player || !readyRef.current) return;
+      if (!player || !readyRef.current || switchingRef.current) return;
       if (playerStateRef.current === "playing" && playing) {
         player.pauseVideo();
       } else {
@@ -247,7 +262,15 @@ export const PlaylistPlayer = forwardRef<PlaylistPlayerHandle, PlaylistPlayerPro
       }
     }, [playing]);
 
-    useImperativeHandle(ref, () => ({ togglePlay, isPlaying: () => playing }), [togglePlay, playing]);
+    useImperativeHandle(
+      ref,
+      () => ({
+        togglePlay,
+        isPlaying: () => playing,
+        isTransitioning: () => switchingRef.current,
+      }),
+      [togglePlay, playing],
+    );
 
     return (
       <div className="relative flex h-full w-full min-h-0 items-center justify-center">

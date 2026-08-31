@@ -11,7 +11,7 @@ interface YtPlayerOptions {
   events?: {
     onReady?: () => void;
     onStateChange?: (event: { data: number }) => void;
-    onError?: () => void;
+    onError?: (event: { data: number }) => void;
   };
 }
 
@@ -23,7 +23,14 @@ interface YtPlayer {
 }
 
 interface YtApi {
-  PlayerState: { ENDED: number; PLAYING: number; PAUSED: number };
+  PlayerState: {
+    ENDED: number;
+    PLAYING: number;
+    PAUSED: number;
+    CUED: number;
+    BUFFERING: number;
+    UNSTARTED: number;
+  };
   Player: new (elementId: string, options: YtPlayerOptions) => YtPlayer;
 }
 
@@ -54,6 +61,7 @@ function loadYouTubeScript(): Promise<YtApi | null> {
 export interface PlaylistAudioPlayerHandle {
   togglePlay: () => void;
   isPlaying: () => boolean;
+  isTransitioning: () => boolean;
 }
 
 export interface PlaylistAudioPlayerProps {
@@ -62,6 +70,7 @@ export interface PlaylistAudioPlayerProps {
   textColor?: string;
   onEnded: () => void;
   onPlayingChange?: (playing: boolean) => void;
+  onTransitionChange?: (transitioning: boolean) => void;
 }
 
 /**
@@ -71,7 +80,10 @@ export interface PlaylistAudioPlayerProps {
 export const PlaylistAudioPlayer = forwardRef<
   PlaylistAudioPlayerHandle,
   PlaylistAudioPlayerProps
->(function PlaylistAudioPlayer({ song, accentColor, textColor, onEnded, onPlayingChange }, ref) {
+>(function PlaylistAudioPlayer(
+  { song, accentColor, textColor, onEnded, onPlayingChange, onTransitionChange },
+  ref,
+) {
   const containerIdRef = useRef<string>(`yt-a-${Math.random().toString(36).slice(2, 10)}`);
   const playerRef = useRef<YtPlayer | null>(null);
   const ytRef = useRef<YtApi | null>(null);
@@ -81,14 +93,22 @@ export const PlaylistAudioPlayer = forwardRef<
   const switchingRef = useRef(false);
   const onEndedRef = useRef(onEnded);
   const onPlayingChangeRef = useRef(onPlayingChange);
+  const onTransitionChangeRef = useRef(onTransitionChange);
   const playingRef = useRef(false);
+  const retryTimerRef = useRef<number | undefined>(undefined);
 
   onEndedRef.current = onEnded;
   onPlayingChangeRef.current = onPlayingChange;
+  onTransitionChangeRef.current = onTransitionChange;
 
   const setPlaying = useCallback((next: boolean) => {
     playingRef.current = next;
     onPlayingChangeRef.current?.(next);
+  }, []);
+
+  const setTransitioning = useCallback((value: boolean) => {
+    switchingRef.current = value;
+    onTransitionChangeRef.current?.(value);
   }, []);
 
   useEffect(() => {
@@ -99,41 +119,58 @@ export const PlaylistAudioPlayer = forwardRef<
     const id = requestedRef.current;
     const player = playerRef.current;
     if (!player || !readyRef.current || id == null) return;
-    switchingRef.current = true;
+
+    if (switchingRef.current) return;
+
+    setTransitioning(true);
     currentRef.current = id;
     try {
       player.loadVideoById(id);
       player.playVideo();
       setPlaying(true);
     } catch {
-      window.setTimeout(() => {
-        if (requestedRef.current !== id) return;
+      if (requestedRef.current !== id) {
+        setTransitioning(false);
+        return;
+      }
+      if (retryTimerRef.current !== undefined) window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = window.setTimeout(() => {
+        retryTimerRef.current = undefined;
+        if (requestedRef.current !== id || !playerRef.current || !readyRef.current) {
+          setTransitioning(false);
+          return;
+        }
         try {
-          player.loadVideoById(id);
-          player.playVideo();
+          playerRef.current.loadVideoById(id);
+          playerRef.current.playVideo();
           setPlaying(true);
         } catch {
-          // let onStateChange/onError settle
+          setTransitioning(false);
         }
-      }, 400);
+      }, 500);
     }
-    switchingRef.current = false;
-  }, [setPlaying]);
+  }, [setPlaying, setTransitioning]);
 
   useEffect(() => {
     let disposed = false;
     void loadYouTubeScript().then((yt) => {
       if (disposed || !yt || playerRef.current) return;
       ytRef.current = yt;
+      const states = yt.PlayerState;
       const onStateChange = (event: { data: number }) => {
-        if (!ytRef.current) return;
-        if (event.data === ytRef.current.PlayerState.ENDED) {
+        if (disposed || !ytRef.current) return;
+        if (event.data === states.ENDED) {
+          setTransitioning(false);
           setPlaying(false);
           onEndedRef.current();
-        } else if (event.data === ytRef.current.PlayerState.PLAYING) {
+        } else if (event.data === states.PLAYING) {
+          setTransitioning(false);
           setPlaying(true);
-        } else if (event.data === ytRef.current.PlayerState.PAUSED) {
+        } else if (event.data === states.PAUSED) {
+          setTransitioning(false);
           setPlaying(false);
+        } else if (event.data === states.BUFFERING || event.data === states.CUED) {
+          // keep transitioning state
         }
       };
       playerRef.current = new yt.Player(containerIdRef.current, {
@@ -143,6 +180,7 @@ export const PlaylistAudioPlayer = forwardRef<
           rel: 0,
           playsinline: 1,
           enablejsapi: 1,
+          origin: "*",
         },
         events: {
           onReady: () => {
@@ -152,11 +190,18 @@ export const PlaylistAudioPlayer = forwardRef<
             loadRequested();
           },
           onStateChange,
-          onError: () => {
-            // Only auto-advance when the error concerns the requested video and
-            // the player isn't mid-switch, to avoid skipping two songs.
-            if (switchingRef.current || !readyRef.current) return;
-            if (currentRef.current == null || currentRef.current === requestedRef.current) {
+          onError: (event: { data: number }) => {
+            if (disposed) return;
+            const errCode = event.data;
+            const vid = currentRef.current;
+            console.error(
+              `[YT Audio Error] code=${errCode} video=${vid} requested=${requestedRef.current}`,
+            );
+            if (switchingRef.current || !readyRef.current) {
+              setTransitioning(false);
+              return;
+            }
+            if (vid == null || vid === requestedRef.current) {
               onEndedRef.current();
             }
           },
@@ -165,6 +210,7 @@ export const PlaylistAudioPlayer = forwardRef<
     });
     return () => {
       disposed = true;
+      if (retryTimerRef.current !== undefined) window.clearTimeout(retryTimerRef.current);
       playerRef.current?.destroy();
       playerRef.current = null;
       readyRef.current = false;
@@ -174,28 +220,28 @@ export const PlaylistAudioPlayer = forwardRef<
 
   useEffect(() => {
     requestedRef.current = song.youtubeId;
+    if (switchingRef.current) return;
     if (currentRef.current === song.youtubeId) {
-      // Same track but different song entry — replay from the start.
       const player = playerRef.current;
       if (player && readyRef.current) {
-        switchingRef.current = true;
+        setTransitioning(true);
+        currentRef.current = song.youtubeId;
         try {
           player.loadVideoById(song.youtubeId);
           player.playVideo();
           setPlaying(true);
         } catch {
-          // ignore
+          // onStateChange will handle
         }
-        switchingRef.current = false;
       }
       return;
     }
     loadRequested();
-  }, [song.youtubeId, loadRequested, setPlaying]);
+  }, [song.youtubeId, loadRequested, setPlaying, setTransitioning]);
 
   const togglePlay = useCallback(() => {
     const player = playerRef.current;
-    if (!player || !readyRef.current) return;
+    if (!player || !readyRef.current || switchingRef.current) return;
     if (playingRef.current) {
       player.pauseVideo();
     } else {
@@ -203,7 +249,15 @@ export const PlaylistAudioPlayer = forwardRef<
     }
   }, []);
 
-  useImperativeHandle(ref, () => ({ togglePlay, isPlaying: () => playingRef.current }), [togglePlay]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      togglePlay,
+      isPlaying: () => playingRef.current,
+      isTransitioning: () => switchingRef.current,
+    }),
+    [togglePlay],
+  );
 
   const textVar = textColor ?? "#ffffff";
 
