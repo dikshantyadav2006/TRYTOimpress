@@ -52,6 +52,8 @@ export function SettingsForm() {
   const [proposalYoutubeId, setProposalYoutubeId] = useState("");
   const [loveStartDate, setLoveStartDate] = useState("");
   const [loveStartLabel, setLoveStartLabel] = useState("");
+  const [birthdayDate, setBirthdayDate] = useState("");
+  const [birthdayMessage, setBirthdayMessage] = useState("");
 
   useEffect(() => {
     get<{ data: SiteSettings }>("/settings")
@@ -76,6 +78,8 @@ export function SettingsForm() {
         setProposalYoutubeId(data.music?.proposalYoutubeId ?? "");
         setLoveStartDate(data.love?.startDate ?? "");
         setLoveStartLabel(data.love?.startLabel ?? "");
+        setBirthdayDate(data.birthday?.date ?? "");
+        setBirthdayMessage(data.birthday?.message ?? "");
         setLoaded(true);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load settings"));
@@ -103,6 +107,8 @@ export function SettingsForm() {
       proposalYoutubeId,
       loveStartDate,
       loveStartLabel,
+      birthdayDate,
+      birthdayMessage,
     },
     { enabled: loaded, resetKey: loaded },
   );
@@ -145,6 +151,10 @@ export function SettingsForm() {
         love: {
           startDate: loveStartDate.trim(),
           startLabel: loveStartLabel.trim(),
+        },
+        birthday: {
+          date: birthdayDate.trim(),
+          message: birthdayMessage.trim(),
         },
       });
       setSaved(true);
@@ -369,6 +379,35 @@ export function SettingsForm() {
               value={loveStartLabel}
               onChange={(event) => setLoveStartLabel(event.target.value)}
               placeholder="the day we met"
+            />
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Birthday"
+        description="Powers the birthday countdown chapter. Leave the date empty to hide it."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="birthdayDate">Birthday (date)</Label>
+            <Input
+              id="birthdayDate"
+              type="date"
+              value={birthdayDate}
+              onChange={(event) => setBirthdayDate(event.target.value)}
+            />
+            <p className="text-muted-foreground mt-1.5 text-xs">
+              The next celebration shown in the countdown. Leave empty to hide the birthday chapter.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="birthdayMessage">Message</Label>
+            <Input
+              id="birthdayMessage"
+              value={birthdayMessage}
+              onChange={(event) => setBirthdayMessage(event.target.value)}
+              placeholder="a very special day is coming"
             />
           </div>
         </div>

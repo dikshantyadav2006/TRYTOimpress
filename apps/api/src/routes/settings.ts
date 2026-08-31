@@ -60,6 +60,12 @@ export function registerSettingsRoutes(app: FastifyInstance, repos: ApiRepos): v
           ? (body.love as Record<string, unknown>)
           : {}),
       },
+      birthday: {
+        ...current.birthday,
+        ...(body.birthday && typeof body.birthday === "object"
+          ? (body.birthday as Record<string, unknown>)
+          : {}),
+      },
     };
 
     const saved = await settings.upsertSettings(ownerId, update as never);
