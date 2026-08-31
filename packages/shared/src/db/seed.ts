@@ -19,7 +19,7 @@ import {
 } from "../data/mock";
 import { defaultSiteSettings } from "../data/site-defaults";
 import type { MusicMood } from "../types/playlist";
-import type { PageBlock } from "../types/page";
+import type { PageBlock, PageVisibility } from "../types/page";
 import { generateSiteSlug, slugifyName } from "../utils/slug";
 import {
   adminUsers,
@@ -55,7 +55,8 @@ export interface SeedPage {
   blocks: PageBlock[];
   cta?: { label: string; href: string } | null;
   order: number;
-  published: boolean;
+  published?: boolean;
+  visibility?: PageVisibility;
   chapter?: boolean;
 }
 
@@ -646,7 +647,7 @@ export async function seedSite(ownerId: string): Promise<void> {
       blocks: page.blocks,
       cta: page.cta ?? null,
       order: page.order,
-      published: page.published,
+      visibility: page.visibility ?? "visible",
       updatedAt: new Date(),
     };
     if (page.subtitle) set.subtitle = page.subtitle;

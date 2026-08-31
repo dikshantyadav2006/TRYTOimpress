@@ -37,7 +37,8 @@ export type {
   SiteSettings,
   SuccessSettings,
 } from "./settings";
-export type { Page, PageBlock } from "./page";
+export type { Page, PageBlock, PageVisibility } from "./page";
+export { isPageAccessible, isPageVisible, sitePagePath } from "./page";
 export type { Song } from "./song";
 export type {
   MusicMood,

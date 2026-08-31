@@ -6,7 +6,7 @@ import type { MediaResourceType } from "../types/media";
 import type { ProposalStatus } from "../types/proposal";
 import type { ProposalAnswer } from "../types/response";
 import type { AdminRole } from "../types/admin";
-import type { PageBlock } from "../types/page";
+import type { PageBlock, PageVisibility } from "../types/page";
 import type { MusicMood } from "../types/playlist";
 import type { SharePermission, ShareRole } from "../types/share";
 
@@ -113,7 +113,9 @@ export interface PageDoc {
   blocks: PageBlock[];
   cta?: { label: string; href: string } | null;
   order: number;
-  published: boolean;
+  visibility: PageVisibility;
+  /** Legacy field from before three-state visibility; used as a fallback when `visibility` is missing. */
+  published?: boolean;
   chapter?: boolean;
   createdAt: Date;
   updatedAt: Date;

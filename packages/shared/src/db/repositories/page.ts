@@ -1,6 +1,6 @@
 import { ObjectId, type UpdateFilter } from "mongodb";
 
-import type { Page, PageBlock } from "../../types/page";
+import type { Page, PageBlock, PageVisibility } from "../../types/page";
 import { pages, type PageDoc } from "../models";
 import { mapPage } from "../mappers";
 
@@ -12,7 +12,7 @@ export interface PageInput {
   blocks?: PageBlock[];
   cta?: { label: string; href: string } | null;
   order?: number;
-  published?: boolean;
+  visibility?: PageVisibility;
   chapter?: boolean;
 }
 
@@ -22,9 +22,12 @@ export class MongoPageRepository {
     return docs.map((doc) => mapPage(doc));
   }
 
-  async getPublishedPages(ownerId: string): Promise<Page[]> {
+  async getVisiblePages(ownerId: string): Promise<Page[]> {
     const docs = await pages()
-      .find({ ownerId, published: true })
+      .find({
+        ownerId,
+        $or: [{ visibility: "visible" }, { published: true, visibility: { $exists: false } }],
+      })
       .sort({ order: 1, createdAt: 1 })
       .toArray();
     return docs.map((doc) => mapPage(doc));
@@ -45,7 +48,7 @@ export class MongoPageRepository {
       title: input.title,
       blocks: input.blocks ?? [],
       order: input.order ?? count,
-      published: input.published ?? true,
+      visibility: input.visibility ?? "visible",
       createdAt: now,
       updatedAt: now,
       ...(input.subtitle ? { subtitle: input.subtitle } : {}),
@@ -69,7 +72,7 @@ export class MongoPageRepository {
       "heroImageUrl",
       "blocks",
       "order",
-      "published",
+      "visibility",
       "chapter",
     ] as const) {
       if (input[key] !== undefined) {

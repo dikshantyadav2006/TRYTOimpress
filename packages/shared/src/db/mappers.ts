@@ -155,7 +155,7 @@ export function mapPage(doc: PageDoc): Page {
     blocks: doc.blocks.map((block) => ({ ...block })),
     ...(doc.cta ? { cta: { label: doc.cta.label, href: doc.cta.href } } : {}),
     order: doc.order,
-    published: doc.published,
+    visibility: doc.visibility ?? (doc.published ? "visible" : "hidden"),
     ...(doc.chapter ? { chapter: doc.chapter } : {}),
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
