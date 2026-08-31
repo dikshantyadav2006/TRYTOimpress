@@ -80,6 +80,10 @@ export function PlaylistExperience({
   const [finished, setFinished] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [liked, setLiked] = useState(false);
+  // Once mounted, the (YouTube) player stays mounted for the whole session.
+  // Persisting it prevents the iframe container from being torn down/rebuilt,
+  // which is what caused "insertBefore"/postMessage errors and breaking Next.
+  const [playerMounted, setPlayerMounted] = useState(false);
 
   // Queue state: `played` are completed song indices (history), `upNext` the
   // remaining ones, `currentIndex` the live track. This deque model makes
@@ -211,6 +215,7 @@ export function PlaylistExperience({
     vibrate(8);
     if (!current) return;
     setStarted(true);
+    setPlayerMounted(true);
     setPlaying(true);
     trackSong(current.id, "plays");
   }, [current, trackSong]);
@@ -224,6 +229,7 @@ export function PlaylistExperience({
     setCurrentIndex(0);
     setFinished(false);
     setStarted(true);
+    setPlayerMounted(true);
     setPlaying(true);
     trackSong(songs[0]!.id, "plays");
   }, [songs, shuffle, trackSong]);
@@ -444,39 +450,81 @@ export function PlaylistExperience({
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7, ease: EASE }}
-            className="flex min-h-0 w-full max-w-2xl flex-1 flex-col items-center justify-center overflow-hidden text-center"
+            className="flex min-h-0 w-full max-w-2xl flex-1 flex-col items-stretch justify-center overflow-hidden text-center"
           >
             <p className="shrink-0 text-[11px] font-medium uppercase tracking-[0.35em] text-[var(--pl-text)]/50">
               {playlist.name} · {currentIndex + 1} / {totalCount}
             </p>
 
-            <div className="flex min-h-0 w-full flex-1 items-center justify-center">
-              {started ? (
-                isAudio ? (
-                  current && (
-                    <PlaylistAudioPlayer
-                      ref={audioPlayerRef}
-                      song={current}
-                      accentColor={accentVar}
-                      textColor={textVar}
-                      onEnded={handleEnded}
-                      onPlayingChange={setPlaying}
-                    />
-                  )
-                ) : (
-                  current && (
-                    <PlaylistPlayer
-                      ref={playerRef}
-                      videoId={current.youtubeId}
-                      onEnded={handleEnded}
-                      onPlayingChange={setPlaying}
-                    />
-                  )
-                )
+            {/* Media area: scales to whatever vertical space is left so the
+                whole player always fits within 100dvh without scrolling. */}
+            <div className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden py-3">
+              {playerMounted ? (
+                <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden">
+                  {current && (
+                    isAudio ? (
+                      <div
+                        className="flex justify-center overflow-hidden"
+                        style={{ width: "min(24rem, 100%, 40dvh)" }}
+                      >
+                        <PlaylistAudioPlayer
+                          ref={audioPlayerRef}
+                          song={current}
+                          accentColor={accentVar}
+                          textColor={textVar}
+                          onEnded={handleEnded}
+                          onPlayingChange={setPlaying}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="flex max-w-full justify-center overflow-hidden"
+                        style={{ width: "min(28rem, calc((52dvh - 3rem) * 1.7778))" }}
+                      >
+                        <PlaylistPlayer
+                          ref={playerRef}
+                          videoId={current.youtubeId}
+                          onEnded={handleEnded}
+                          onPlayingChange={setPlaying}
+                        />
+                      </div>
+                    )
+                  )}
+
+                  {!isAudio ? (
+                    <>
+                      <h1 className="mt-3 max-w-xl shrink-0 truncate font-serif text-2xl text-[var(--pl-text)] sm:text-3xl">
+                        {current?.title}
+                      </h1>
+                      <p className="mt-0.5 shrink-0 truncate text-xs uppercase tracking-wide text-[var(--pl-text)]/60">
+                        {current?.artist}
+                      </p>
+                    </>
+                  ) : null}
+
+                  {!started && (
+                    <button
+                      type="button"
+                      onClick={onStart}
+                      aria-label={`Play ${playlist.name}`}
+                      className="absolute inset-0 z-20 flex items-center justify-center"
+                    >
+                      <span
+                        className="flex h-20 w-20 items-center justify-center rounded-full text-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.7)] ring-4 ring-white/20 transition-transform hover:scale-105 active:scale-95"
+                        style={{ backgroundColor: accentVar }}
+                      >
+                        <Play className="ml-1 h-8 w-8 fill-current" />
+                      </span>
+                    </button>
+                  )}
+                </div>
               ) : (
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center justify-center">
                   {currentArtwork && (
-                    <div className="mb-8 aspect-square w-full max-w-[15rem] overflow-hidden rounded-3xl shadow-2xl ring-1 ring-white/15">
+                    <div
+                      className="aspect-square w-full max-w-[13rem] overflow-hidden rounded-3xl shadow-2xl ring-1 ring-white/15"
+                      style={{ maxHeight: "min(13rem, 38dvh)" }}
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={currentArtwork}
@@ -486,114 +534,104 @@ export function PlaylistExperience({
                     </div>
                   )}
                   {current && !isAudio && (
-                    <>
-                      <h1 className="shrink-0 font-serif text-3xl text-[var(--pl-text)] sm:text-4xl">
-                        {current.title}
-                      </h1>
-                      <p className="mt-1 shrink-0 text-sm tracking-wide text-[var(--pl-text)]/60 uppercase">
-                        {current.artist}
-                      </p>
-                    </>
+                    <h1 className="mt-4 max-w-xl shrink-0 truncate font-serif text-2xl text-[var(--pl-text)] sm:text-3xl">
+                      {current.title}
+                    </h1>
+                  )}
+                  {current && !isAudio && (
+                    <p className="mt-0.5 shrink-0 truncate text-xs uppercase tracking-wide text-[var(--pl-text)]/60">
+                      {current.artist}
+                    </p>
                   )}
                   <button
                     type="button"
                     onClick={onStart}
                     aria-label={`Play ${playlist.name}`}
-                    className="group mt-8 flex h-20 w-20 items-center justify-center rounded-full text-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.7)] ring-4 ring-white/20 transition-transform hover:scale-110 active:scale-95"
+                    className="group mt-5 flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.7)] ring-4 ring-white/20 transition-transform hover:scale-105 active:scale-95"
                     style={{ backgroundColor: accentVar }}
                   >
-                    <Play className="ml-1 h-8 w-8 fill-current" />
+                    <Play className="ml-0.5 h-7 w-7 fill-current" />
                   </button>
                 </div>
               )}
             </div>
 
-            {started && (
-              <div className="flex w-full max-w-sm shrink-0 flex-col items-center gap-4">
-                {!isAudio && current && (
-                  <div className="w-full text-center">
-                    <h1 className="shrink-0 font-serif text-2xl text-[var(--pl-text)] sm:text-3xl">
-                      {current.title}
-                    </h1>
-                    <p className="mt-0.5 shrink-0 text-xs tracking-wide text-[var(--pl-text)]/60 uppercase">
-                      {current.artist}
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-center gap-2 sm:gap-3">
-                  <button
-                    type="button"
-                    onClick={toggleShuffle}
-                    aria-pressed={shuffle}
-                    aria-label="Toggle shuffle"
-                    className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-                      shuffle
-                        ? "bg-white/20 text-white"
-                        : "border border-white/20 bg-black/30 text-[var(--pl-text)]/70"
-                    }`}
-                  >
-                    <Shuffle className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onPrev}
-                    disabled={!hasPrevious}
-                    aria-label="Previous song"
-                    className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <SkipBack className="h-6 w-6 fill-current" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={togglePlay}
-                    aria-label="Play or pause"
-                    className="flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white/20 transition-transform hover:scale-105 active:scale-95"
-                    style={{ backgroundColor: accentVar }}
-                  >
-                    {playing ? (
-                      <Pause className="h-7 w-7 fill-current" />
-                    ) : (
-                      <Play className="ml-0.5 h-7 w-7 fill-current" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onSkip}
-                    aria-label="Skip to next song"
-                    className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
-                  >
-                    <SkipForward className="h-6 w-6 fill-current" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={toggleRepeat}
-                    aria-label={`Repeat: ${repeat}`}
-                    aria-pressed={repeat !== "off"}
-                    className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-                      repeat !== "off"
-                        ? "bg-white/20 text-white"
-                        : "border border-white/20 bg-black/30 text-[var(--pl-text)]/70"
-                    }`}
-                  >
-                    {repeat === "one" ? <Repeat1 className="h-5 w-5" /> : <Repeat className="h-5 w-5" />}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onLike}
-                    aria-label="Like this playlist"
-                    className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 backdrop-blur-md transition-transform hover:scale-105 active:scale-95 ${
-                      liked ? "text-rose-400" : "text-[var(--pl-text)]/70"
-                    }`}
-                  >
-                    <Heart className={`h-5 w-5 ${liked ? "fill-current" : ""}`} />
-                  </button>
-                </div>
+            {/* Control bar */}
+            <div className="flex shrink-0 flex-col items-center gap-3">
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={toggleShuffle}
+                  aria-pressed={shuffle}
+                  aria-label="Toggle shuffle"
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                    shuffle
+                      ? "bg-white/20 text-white"
+                      : "border border-white/20 bg-black/30 text-[var(--pl-text)]/70"
+                  }`}
+                >
+                  <Shuffle className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onPrev}
+                  disabled={!hasPrevious}
+                  aria-label="Previous song"
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <SkipBack className="h-5 w-5 fill-current" />
+                </button>
+                <button
+                  type="button"
+                  onClick={togglePlay}
+                  aria-label="Play or pause"
+                  className="flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white/20 transition-transform hover:scale-105 active:scale-95"
+                  style={{ backgroundColor: accentVar }}
+                >
+                  {playing ? (
+                    <Pause className="h-7 w-7 fill-current" />
+                  ) : (
+                    <Play className="ml-0.5 h-7 w-7 fill-current" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={onSkip}
+                  aria-label="Skip to next song"
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/30 text-[var(--pl-text)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
+                >
+                  <SkipForward className="h-5 w-5 fill-current" />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleRepeat}
+                  aria-label={`Repeat: ${repeat}`}
+                  aria-pressed={repeat !== "off"}
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                    repeat !== "off"
+                      ? "bg-white/20 text-white"
+                      : "border border-white/20 bg-black/30 text-[var(--pl-text)]/70"
+                  }`}
+                >
+                  {repeat === "one" ? (
+                    <Repeat1 className="h-5 w-5" />
+                  ) : (
+                    <Repeat className="h-5 w-5" />
+                  )}
+                </button>
               </div>
-            )}
+
+              <button
+                type="button"
+                onClick={onLike}
+                aria-label="Like this playlist"
+                className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/30 backdrop-blur-md transition-transform hover:scale-105 active:scale-95 ${
+                  liked ? "text-rose-400" : "text-[var(--pl-text)]/70"
+                }`}
+              >
+                <Heart className={`h-5 w-5 ${liked ? "fill-current" : ""}`} />
+              </button>
+            </div>
 
             {quote && !isAudio && (
               <motion.p
@@ -601,7 +639,7 @@ export function PlaylistExperience({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.2, ease: EASE }}
-                className="mx-auto mt-6 max-w-md shrink-0 font-serif text-base italic leading-relaxed text-[var(--pl-text)]/70 sm:text-lg"
+                className="mx-auto mt-3 max-w-md shrink-0 font-serif text-sm italic leading-relaxed text-[var(--pl-text)]/70 sm:text-base"
               >
                 “{quote}”
               </motion.p>
