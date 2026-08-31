@@ -16,6 +16,7 @@ import type {
   Surprise,
   Wish,
 } from "@repo/shared";
+import { resolvePlaylistSource } from "@repo/shared";
 
 const API_URL =
   process.env.API_URL ??
@@ -118,6 +119,32 @@ export async function getPlaylist(slug: string, playlistSlug: string): Promise<P
     }
     throw error;
   }
+}
+
+export interface ResolvedPlaylist {
+  songs: Playlist["songs"];
+  resolveFailed: boolean;
+  hasSource: boolean;
+}
+
+/**
+ * Resolves a playlist's track list for the player. When the playlist has a
+ * source URL, fetch fresh tracks at runtime and fall back to the cached
+ * `songs` snapshot if the live fetch fails. Never throws for empty results.
+ */
+export async function resolvePlaylistTracks(playlist: Playlist): Promise<ResolvedPlaylist> {
+  if (playlist.sourceUrl?.trim()) {
+    try {
+      const resolved = await resolvePlaylistSource(playlist.sourceUrl.trim());
+      if (resolved && resolved.songs.length > 0) {
+        return { songs: resolved.songs, resolveFailed: false, hasSource: true };
+      }
+      return { songs: playlist.songs, resolveFailed: true, hasSource: true };
+    } catch {
+      return { songs: playlist.songs, resolveFailed: true, hasSource: true };
+    }
+  }
+  return { songs: playlist.songs, resolveFailed: false, hasSource: false };
 }
 
 export async function getReasons(slug: string): Promise<Reason[]> {

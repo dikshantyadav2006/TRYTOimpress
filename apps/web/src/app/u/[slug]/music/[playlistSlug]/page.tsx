@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PlaylistExperience } from "@/components/songs/playlist-experience";
-import { getPlaylist, getPlaylists } from "@/lib/content";
+import { getPlaylist, getPlaylists, resolvePlaylistTracks } from "@/lib/content";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,15 @@ export default async function MusicPlaylistPage({ params }: MusicPageProps) {
 
   if (!playlist) notFound();
 
+  const resolved = await resolvePlaylistTracks(playlist);
+
   return (
-    <PlaylistExperience playlist={playlist} siteSlug={slug} allPlaylists={allPlaylists} />
+    <PlaylistExperience
+      playlist={playlist}
+      songs={resolved.songs}
+      sourceError={resolved.resolveFailed}
+      siteSlug={slug}
+      allPlaylists={allPlaylists}
+    />
   );
 }
