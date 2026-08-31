@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { isPageAccessible } from "@repo/shared";
 import type { AdminUser } from "@repo/shared";
 
 import type { ApiRepos } from "../repos";
@@ -91,7 +92,7 @@ export function registerSiteRoutes(app: FastifyInstance, repos: ApiRepos): void 
   app.get<{ Params: { slug: string } }>("/sites/:slug/pages", async (request, reply) => {
     const user = await resolveSite(request, reply);
     if (!user || !pages) return;
-    return { data: await pages.getPublishedPages(user.id) };
+    return { data: await pages.getVisiblePages(user.id) };
   });
 
   app.get<{ Params: { slug: string; pageSlug: string } }>(
@@ -100,7 +101,7 @@ export function registerSiteRoutes(app: FastifyInstance, repos: ApiRepos): void 
       const user = await resolveSite(request, reply);
       if (!user || !pages) return;
       const page = await pages.getPageBySlug(user.id, request.params.pageSlug);
-      if (!page || !page.published) return reply.code(404).send({ error: "not_found" });
+      if (!page || !isPageAccessible(page)) return reply.code(404).send({ error: "not_found" });
       return { data: page };
     },
   );

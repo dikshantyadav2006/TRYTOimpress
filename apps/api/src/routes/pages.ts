@@ -25,7 +25,7 @@ export function registerPageRoutes(app: FastifyInstance, repos: ApiRepos): void 
       blocks?: unknown;
       cta?: unknown;
       order?: number;
-      published?: boolean;
+      visibility?: "visible" | "link" | "hidden";
       chapter?: boolean;
     };
     if (!body.slug || !body.title) {
@@ -40,7 +40,7 @@ export function registerPageRoutes(app: FastifyInstance, repos: ApiRepos): void 
         ...(Array.isArray(body.blocks) ? { blocks: body.blocks } : {}),
         ...(body.cta ? { cta: body.cta as never } : {}),
         ...(typeof body.order === "number" ? { order: body.order } : {}),
-        ...(typeof body.published === "boolean" ? { published: body.published } : {}),
+        ...(typeof body.visibility === "string" ? { visibility: body.visibility } : {}),
         ...(typeof body.chapter === "boolean" ? { chapter: body.chapter } : {}),
       },
       user.id,
