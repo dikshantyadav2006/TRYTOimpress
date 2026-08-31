@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cn } from "@repo/ui";
 
 import { CtaLink } from "@/components/cta-link";
+import { ShareButton } from "@/components/share-button";
 
 export interface StepNavProps {
   step: number;
@@ -47,6 +48,8 @@ export function StepNav({ step, total, next, back }: StepNavProps) {
         )}
         {next && <CtaLink href={next.href} label={next.label} />}
       </div>
+
+      <ShareButton />
     </nav>
   );
 }

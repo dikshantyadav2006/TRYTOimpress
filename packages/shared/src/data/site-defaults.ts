@@ -34,4 +34,8 @@ export const defaultSiteSettings: SiteSettings = {
     startDate: "",
     startLabel: "the day we met",
   },
+  birthday: {
+    date: "",
+    message: "a very special day is coming",
+  },
 };
