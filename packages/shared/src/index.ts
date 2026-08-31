@@ -49,6 +49,16 @@ export {
   type ContentService,
 } from "./services/content.service";
 export {
+  YouTubePlaylistProvider,
+  PlaylistImportError,
+  fetchYouTubePlaylist,
+  getProvider,
+  playlistProviders,
+  type ImportedPlaylist,
+  type ImportedTrack,
+  type PlaylistProviderAdapter,
+} from "./services/import.service";
+export {
   createProposalSchema,
   type CreateProposalFormValues,
 } from "./schemas/proposal.schemas";
@@ -66,6 +76,8 @@ export {
   getYouTubeEmbedUrl,
   getYouTubeThumbnail,
   parseYouTubeId,
+  parseYouTubePlaylistId,
+  isYouTubeUrl,
 } from "./utils/youtube";
 export {
   RECIPIENT_EMOJI,

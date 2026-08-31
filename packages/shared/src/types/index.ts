@@ -43,6 +43,8 @@ export type { Song } from "./song";
 export type {
   MusicMood,
   Playlist,
+  PlaylistMode,
+  PlaylistProvider,
   PlaylistSong,
   PlaylistTheme,
 } from "./playlist";

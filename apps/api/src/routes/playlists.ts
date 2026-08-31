@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { slugify } from "@repo/shared";
+import { getProvider, PlaylistImportError } from "@repo/shared";
 import type { ApiRepos } from "../repos";
 import { requireAuth } from "../auth";
 import type { PlaylistInput } from "@repo/shared/db";
@@ -13,6 +14,65 @@ export function registerPlaylistRoutes(app: FastifyInstance, repos: ApiRepos): v
     const user = await requireAuth(auth, request, reply);
     if (!user) return;
     return { data: await playlists.list(user.id) };
+  });
+
+  app.post("/playlists/import", async (request, reply) => {
+    const user = await requireAuth(auth, request, reply);
+    if (!user) return;
+    const body = (request.body ?? {}) as { url?: string; name?: string; mode?: "video" | "audio" };
+    const url = body.url?.trim();
+    if (!url) {
+      return reply.code(400).send({ error: "url_required" });
+    }
+    let imported;
+    try {
+      const provider = getProvider(url);
+      imported = await provider.fetch(url, user.id);
+    } catch (error) {
+      if (error instanceof PlaylistImportError) {
+        return reply.code(400).send({ error: error.message });
+      }
+      throw error;
+    }
+
+    const slugBase = body.name?.trim() || imported.name;
+    let slug = slugify(slugBase).toLowerCase();
+    if (!slug) slug = `playlist-${Date.now()}`;
+    while (await playlists.slugExists(user.id, slug)) {
+      slug = `${slugify(slugBase).toLowerCase()}-${Math.floor(Math.random() * 1000)}`;
+    }
+
+    const input: PlaylistInput = {
+      name: body.name?.trim() || imported.name,
+      slug,
+      ...(imported.description ? { description: imported.description } : {}),
+      ...(imported.coverImage ? { coverImage: imported.coverImage } : {}),
+      mode: body.mode ?? imported.mode,
+      provider: imported.provider,
+      ...(imported.providerPlaylistId
+        ? { providerPlaylistId: imported.providerPlaylistId }
+        : {}),
+      backgrounds: [],
+      theme: {
+        overlayColor: "#000000",
+        textColor: "#ffffff",
+        accentColor: "#d4a373",
+      },
+      quotes: [],
+      mood: "love",
+      songs: imported.songs.map((song) => ({
+        title: song.title,
+        artist: song.artist,
+        youtubeId: song.youtubeId ?? song.id ?? "",
+        ...(song.thumbnail ? { thumbnail: song.thumbnail } : {}),
+        ...(song.duration ? { duration: song.duration } : {}),
+        order: song.order,
+      })),
+      published: true,
+    };
+
+    const playlist = await playlists.create(input, user.id);
+    return reply.code(201).send({ data: playlist });
   });
 
   app.post("/playlists", async (request, reply) => {
@@ -77,6 +137,9 @@ export function registerPlaylistRoutes(app: FastifyInstance, repos: ApiRepos): v
     if (body.recommendedSlugs !== undefined)
       input.recommendedSlugs = body.recommendedSlugs.map(String).filter(Boolean);
     if (body.songs !== undefined) input.songs = body.songs;
+    if (body.mode !== undefined) input.mode = body.mode;
+    if (body.provider !== undefined) input.provider = body.provider;
+    if (body.providerPlaylistId !== undefined) input.providerPlaylistId = String(body.providerPlaylistId);
     if (body.order !== undefined) input.order = body.order;
     if (body.published !== undefined) input.published = body.published;
     const playlist = await playlists.update(user.id, request.params.id, input);
