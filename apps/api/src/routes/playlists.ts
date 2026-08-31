@@ -78,6 +78,7 @@ export function registerPlaylistRoutes(app: FastifyInstance, repos: ApiRepos): v
         ...(body.providerPlaylistId
           ? { providerPlaylistId: String(body.providerPlaylistId) }
           : {}),
+        ...(body.sourceUrl ? { sourceUrl: String(body.sourceUrl) } : {}),
         backgrounds: Array.isArray(body.backgrounds) ? body.backgrounds.map(String) : [],
         theme: {
           overlayColor: String(body.theme?.overlayColor ?? "#000000"),
@@ -125,6 +126,7 @@ export function registerPlaylistRoutes(app: FastifyInstance, repos: ApiRepos): v
     if (body.mode !== undefined) input.mode = body.mode;
     if (body.provider !== undefined) input.provider = body.provider;
     if (body.providerPlaylistId !== undefined) input.providerPlaylistId = String(body.providerPlaylistId);
+    if (body.sourceUrl !== undefined) input.sourceUrl = String(body.sourceUrl);
     if (body.order !== undefined) input.order = body.order;
     if (body.published !== undefined) input.published = body.published;
     const playlist = await playlists.update(user.id, request.params.id, input);
