@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { ChapterHeader } from "@/components/chapter/chapter-header";
 import { SongsDeck } from "@/components/songs/songs-deck";
 import { StepNav } from "@/components/step-nav";
+import { getChapterNav } from "@/lib/chapters";
 import { getPage, getSongs } from "@/lib/content";
-import { siteHref, type SitePageProps } from "@/lib/site";
+import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ export default async function SongsPage({ params }: SitePageProps) {
 
   if (!page) notFound();
 
+  const nav = await getChapterNav(slug, "songs");
+
   return (
     <>
       <ChapterHeader
@@ -35,10 +38,10 @@ export default async function SongsPage({ params }: SitePageProps) {
       <SongsDeck songs={songs} />
 
       <StepNav
-        step={5}
-        total={19}
-        back={siteHref(slug, "/reasons")}
-        next={page.cta ? { ...page.cta, href: siteHref(slug, page.cta.href) } : null}
+        step={nav.step}
+        total={nav.total}
+        back={nav.back}
+        next={nav.next}
       />
     </>
   );

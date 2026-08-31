@@ -6,8 +6,9 @@ import { DaysTogether } from "@/components/love/days-together";
 import { Stargazing } from "@/components/love/stargazing";
 import { StepNav } from "@/components/step-nav";
 import { StoryTimeline } from "@/components/story/story-timeline";
+import { getChapterNav } from "@/lib/chapters";
 import { getMemories, getPage, getSiteSettings } from "@/lib/content";
-import { siteHref, type SitePageProps } from "@/lib/site";
+import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,8 @@ export default async function OurStoryPage({ params }: SitePageProps) {
   ]);
 
   if (!page) notFound();
+
+  const nav = await getChapterNav(slug, "our-story");
 
   return (
     <>
@@ -55,10 +58,10 @@ export default async function OurStoryPage({ params }: SitePageProps) {
       <StoryTimeline memories={memories} />
 
       <StepNav
-        step={2}
-        total={19}
-        back={siteHref(slug, "/")}
-        next={page.cta ? { ...page.cta, href: siteHref(slug, page.cta.href) } : null}
+        step={nav.step}
+        total={nav.total}
+        back={nav.back}
+        next={nav.next}
       />
     </>
   );

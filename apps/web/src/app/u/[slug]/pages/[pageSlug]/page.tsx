@@ -7,6 +7,8 @@ import { BlurReveal, TextReveal } from "@repo/ui";
 import { ChapterHeader } from "@/components/chapter/chapter-header";
 import { CtaLink } from "@/components/cta-link";
 import { EditableImage } from "@/components/media/editable-image";
+import { StepNav } from "@/components/step-nav";
+import { getChapterNav } from "@/lib/chapters";
 import { getPage } from "@/lib/content";
 import { siteHref, type SiteContentPageProps } from "@/lib/site";
 
@@ -73,6 +75,8 @@ export default async function CustomPage({ params }: SiteContentPageProps) {
     notFound();
   }
 
+  const nav = page.chapter ? await getChapterNav(slug, page.slug) : null;
+
   return (
     <main className="bg-background min-h-svh">
       <ChapterHeader
@@ -111,11 +115,18 @@ export default async function CustomPage({ params }: SiteContentPageProps) {
           />
         ))}
 
-        {page.cta && (
+        {page.chapter && nav ? (
+          <StepNav
+            step={nav.step}
+            total={nav.total}
+            back={nav.back}
+            next={nav.next}
+          />
+        ) : page.cta ? (
           <div className="mt-14 flex justify-center">
             <CtaLink href={siteHref(slug, page.cta.href)} label={page.cta.label} />
           </div>
-        )}
+        ) : null}
       </div>
     </main>
   );

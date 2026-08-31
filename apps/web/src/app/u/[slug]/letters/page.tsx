@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { ChapterHeader } from "@/components/chapter/chapter-header";
 import { LetterEnvelopes } from "@/components/letters/letter-envelopes";
 import { StepNav } from "@/components/step-nav";
+import { getChapterNav } from "@/lib/chapters";
 import { getLetters, getPage } from "@/lib/content";
-import { siteHref, type SitePageProps } from "@/lib/site";
+import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ export default async function LettersPage({ params }: SitePageProps) {
 
   if (!page) notFound();
 
+  const nav = await getChapterNav(slug, "letters");
+
   return (
     <>
       <ChapterHeader
@@ -35,10 +38,10 @@ export default async function LettersPage({ params }: SitePageProps) {
       <LetterEnvelopes letters={letters} />
 
       <StepNav
-        step={14}
-        total={19}
-        back={siteHref(slug, "/future")}
-        next={page.cta ? { ...page.cta, href: siteHref(slug, page.cta.href) } : null}
+        step={nav.step}
+        total={nav.total}
+        back={nav.back}
+        next={nav.next}
       />
     </>
   );

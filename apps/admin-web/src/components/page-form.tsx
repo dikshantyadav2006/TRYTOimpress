@@ -91,7 +91,7 @@ export function PageForm({ page }: { page?: Page | null }) {
       published,
       chapter,
     };
-    if (ctaLabel.trim() && ctaHref.trim()) {
+    if (!chapter && ctaLabel.trim() && ctaHref.trim()) {
       body.cta = { label: ctaLabel, href: ctaHref };
     }
     try {
@@ -147,6 +147,9 @@ export function PageForm({ page }: { page?: Page | null }) {
           <Switch checked={chapter} onChange={setChapter} label="Show in chapters" />
           Show in chapter navigator
         </label>
+        <p className="text-muted-foreground text-xs">
+          Chapter pages link to the next chapter automatically by order — no link to set.
+        </p>
       </SectionCard>
 
       <SectionCard title="Hero image" description="Optional image shown under the title.">
@@ -221,27 +224,29 @@ export function PageForm({ page }: { page?: Page | null }) {
         </button>
       </SectionCard>
 
-      <SectionCard title="Next step (CTA)" description="Optional button shown at the bottom of the page.">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="ctaLabel">CTA label</Label>
-            <Input
-              id="ctaLabel"
-              value={ctaLabel}
-              onChange={(event) => setCtaLabel(event.target.value)}
-            />
+      {!chapter && (
+        <SectionCard title="Next step (CTA)" description="Optional button shown at the bottom of the page.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="ctaLabel">CTA label</Label>
+              <Input
+                id="ctaLabel"
+                value={ctaLabel}
+                onChange={(event) => setCtaLabel(event.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="ctaHref">CTA href</Label>
+              <Input
+                id="ctaHref"
+                value={ctaHref}
+                onChange={(event) => setCtaHref(event.target.value)}
+                placeholder="/proposal"
+              />
+            </div>
           </div>
-          <div>
-            <Label htmlFor="ctaHref">CTA href</Label>
-            <Input
-              id="ctaHref"
-              value={ctaHref}
-              onChange={(event) => setCtaHref(event.target.value)}
-              placeholder="/proposal"
-            />
-          </div>
-        </div>
-      </SectionCard>
+        </SectionCard>
+      )}
 
       <FormFooter loading={loading} error={error} submitLabel={isEdit ? "Save changes" : "Create page"} />
     </form>

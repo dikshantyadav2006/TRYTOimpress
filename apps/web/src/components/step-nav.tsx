@@ -9,7 +9,7 @@ export interface StepNavProps {
   step: number;
   total: number;
   next: { href: string; label: string } | null | undefined;
-  back?: string;
+  back?: string | null | undefined;
 }
 
 export function StepNav({ step, total, next, back }: StepNavProps) {

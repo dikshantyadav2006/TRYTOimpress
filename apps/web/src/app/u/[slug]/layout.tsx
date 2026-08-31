@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { MusicProvider, MusicToggle } from "@repo/ui";
 
 import { ChapterRail, type ChapterRailItem } from "@/components/chapter/chapter-rail";
-import { getSitePages, getSiteSettings } from "@/lib/content";
+import { getChapterLinks } from "@/lib/chapters";
+import { getSiteSettings } from "@/lib/content";
 import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -49,11 +50,7 @@ export default async function SiteLayout({
 
   if (chaptersEnabled) {
     try {
-      const pages = await getSitePages(slug);
-      chapterItems = pages
-        .filter((page) => page.published && page.chapter)
-        .sort((a, b) => a.order - b.order)
-        .map((page) => ({ slug: page.slug, title: page.title }));
+      chapterItems = await getChapterLinks(slug);
     } catch {
       chapterItems = [];
     }
@@ -63,7 +60,7 @@ export default async function SiteLayout({
     <MusicProvider {...(backgroundMusicUrl ? { backgroundMusicUrl } : {})}>
       <MusicToggle />
       {children}
-      <ChapterRail slug={slug} items={chapterItems} />
+      <ChapterRail items={chapterItems} />
     </MusicProvider>
   );
 }

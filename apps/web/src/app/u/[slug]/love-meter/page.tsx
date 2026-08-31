@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { ChapterHeader } from "@/components/chapter/chapter-header";
 import { LoveMeter } from "@/components/love/love-meter";
 import { StepNav } from "@/components/step-nav";
+import { getChapterNav } from "@/lib/chapters";
 import { getPage, getSiteSettings } from "@/lib/content";
-import { siteHref, type SitePageProps } from "@/lib/site";
+import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ export default async function LoveMeterPage({ params }: SitePageProps) {
 
   if (!page) notFound();
 
+  const nav = await getChapterNav(slug, "love-meter");
+
   return (
     <>
       <ChapterHeader
@@ -35,10 +38,10 @@ export default async function LoveMeterPage({ params }: SitePageProps) {
       <LoveMeter startDate={settings.love.startDate} startLabel={settings.love.startLabel} />
 
       <StepNav
-        step={8}
-        total={19}
-        back={siteHref(slug, "/questions")}
-        next={page.cta ? { ...page.cta, href: siteHref(slug, page.cta.href) } : null}
+        step={nav.step}
+        total={nav.total}
+        back={nav.back}
+        next={nav.next}
       />
     </>
   );

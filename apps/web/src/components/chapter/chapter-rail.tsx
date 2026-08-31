@@ -44,14 +44,14 @@ function CloseIcon({ className }: { className?: string }) {
 export interface ChapterRailItem {
   slug: string;
   title: string;
+  href: string;
 }
 
 export interface ChapterRailProps {
-  slug: string;
   items: ChapterRailItem[];
 }
 
-export function ChapterRail({ slug, items }: ChapterRailProps) {
+export function ChapterRail({ items }: ChapterRailProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -82,7 +82,7 @@ export function ChapterRail({ slug, items }: ChapterRailProps) {
           </p>
           <ul className="space-y-0.5">
             {items.map((item) => {
-              const href = `/u/${slug}/${item.slug}`;
+              const href = item.href;
               const active = pathname === href;
               return (
                 <li key={item.slug}>
@@ -142,7 +142,7 @@ export function ChapterRail({ slug, items }: ChapterRailProps) {
             </div>
             <div className="space-y-1">
               {items.map((item) => {
-                const href = `/u/${slug}/${item.slug}`;
+                const href = item.href;
                 const active = pathname === href;
                 return (
                   <Link

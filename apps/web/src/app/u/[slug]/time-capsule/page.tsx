@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { ChapterHeader } from "@/components/chapter/chapter-header";
 import { TimeCapsule } from "@/components/love/time-capsule";
 import { StepNav } from "@/components/step-nav";
+import { getChapterNav } from "@/lib/chapters";
 import { getCapsules, getPage } from "@/lib/content";
-import { siteHref, type SitePageProps } from "@/lib/site";
+import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ export default async function TimeCapsulePage({ params }: SitePageProps) {
 
   if (!page) notFound();
 
+  const nav = await getChapterNav(slug, "time-capsule");
+
   return (
     <>
       <ChapterHeader
@@ -35,10 +38,10 @@ export default async function TimeCapsulePage({ params }: SitePageProps) {
       <TimeCapsule capsules={capsules} />
 
       <StepNav
-        step={15}
-        total={19}
-        back={siteHref(slug, "/letters")}
-        next={page.cta ? { ...page.cta, href: siteHref(slug, page.cta.href) } : null}
+        step={nav.step}
+        total={nav.total}
+        back={nav.back}
+        next={nav.next}
       />
     </>
   );

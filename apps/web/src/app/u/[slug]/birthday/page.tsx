@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { ChapterHeader } from "@/components/chapter/chapter-header";
 import { BirthdayCountdown } from "@/components/love/birthday-countdown";
 import { StepNav } from "@/components/step-nav";
+import { getChapterNav } from "@/lib/chapters";
 import { getPage, getSiteSettings } from "@/lib/content";
-import { siteHref, type SitePageProps } from "@/lib/site";
+import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function BirthdayPage({ params }: SitePageProps) {
 
   const title = page?.title ?? "Your Birthday";
   const subtitle = page?.subtitle ?? "counting down to the best day of the year";
+  const nav = await getChapterNav(slug, "birthday");
 
   return (
     <>
@@ -40,10 +42,10 @@ export default async function BirthdayPage({ params }: SitePageProps) {
       <div className="h-20" />
 
       <StepNav
-        step={20}
-        total={20}
-        back={siteHref(slug, "/surprise")}
-        next={page?.cta ? { ...page.cta, href: siteHref(slug, page.cta.href) } : null}
+        step={nav.step}
+        total={nav.total}
+        back={nav.back}
+        next={nav.next}
       />
     </>
   );

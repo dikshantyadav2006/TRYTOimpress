@@ -6,8 +6,9 @@ import { GalleryExperience } from "@/components/gallery/gallery-experience";
 import type { GalleryItem } from "@/components/gallery/types";
 import { mapFeedEntry } from "@/components/gallery/types";
 import { StepNav } from "@/components/step-nav";
+import { getChapterNav } from "@/lib/chapters";
 import { getGalleryFeed, getPage } from "@/lib/content";
-import { siteHref, type SitePageProps } from "@/lib/site";
+import type { SitePageProps } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export default async function GalleryPage({ params }: SitePageProps) {
     .map((entry) => mapFeedEntry(entry))
     .filter((item): item is GalleryItem => item !== null);
 
+  const nav = await getChapterNav(slug, "gallery");
+
   return (
     <>
       <ChapterHeader
@@ -49,10 +52,10 @@ export default async function GalleryPage({ params }: SitePageProps) {
       />
 
       <StepNav
-        step={3}
-        total={19}
-        back={siteHref(slug, "/our-story")}
-        next={page.cta ? { ...page.cta, href: siteHref(slug, page.cta.href) } : null}
+        step={nav.step}
+        total={nav.total}
+        back={nav.back}
+        next={nav.next}
       />
     </>
   );
