@@ -110,6 +110,7 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
   const [providerPlaylistId, setProviderPlaylistId] = useState<string | undefined>(
     playlist?.providerPlaylistId,
   );
+  const [sourceUrl, setSourceUrl] = useState<string | undefined>(playlist?.sourceUrl);
   const [backgrounds, setBackgrounds] = useState<string[]>(playlist?.backgrounds ?? []);
   const [overlayColor, setOverlayColor] = useState(playlist?.theme.overlayColor ?? "#000000");
   const [textColor, setTextColor] = useState(playlist?.theme.textColor ?? "#ffffff");
@@ -150,6 +151,8 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
     coverImage,
     mode,
     provider,
+    providerPlaylistId,
+    sourceUrl,
     backgrounds,
     overlayColor,
     textColor,
@@ -192,6 +195,7 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
       setMode(importMode);
       setProvider("youtube");
       setProviderPlaylistId(result.providerPlaylistId);
+      setSourceUrl(url);
       setTracks(
         result.songs.map((song) => {
           const track: DraftTrack = {
@@ -296,8 +300,9 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
       ...(description.trim() ? { description: description.trim() } : {}),
       ...(coverImage ? { coverImage } : {}),
       mode,
-      provider,
+      provider: sourceUrl ? "youtube" : provider,
       ...(providerPlaylistId ? { providerPlaylistId } : {}),
+      ...(sourceUrl ? { sourceUrl } : {}),
       backgrounds,
       theme: { overlayColor, textColor, accentColor },
       quotes: quotes.map((quote) => quote.trim()).filter(Boolean),
@@ -391,19 +396,22 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
         </div>
       </SectionCard>
 
-      <SectionCard title="Import a playlist" description="Paste a YouTube playlist URL to import every track automatically — no manual entry needed.">
+      <SectionCard title="Playlist source" description="Paste a YouTube playlist URL. Tracks are fetched live from this source at runtime, so no manual import is required.">
         <div className="space-y-3">
           <div>
-            <Label htmlFor="import-url">Playlist URL</Label>
+            <Label htmlFor="source-url">Playlist URL</Label>
             <Input
-              id="import-url"
+              id="source-url"
               value={importUrl}
-              onChange={(event) => setImportUrl(event.target.value)}
+              onChange={(event) => {
+                setImportUrl(event.target.value);
+                if (event.target.value.trim()) setSourceUrl(event.target.value.trim());
+              }}
               placeholder="https://www.youtube.com/playlist?list=…"
             />
           </div>
           <div>
-            <Label>Import as</Label>
+            <Label>Player mode for this source</Label>
             <SegmentedControl
               name="import-mode"
               options={MODE_OPTIONS}
@@ -420,11 +428,11 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
             className="hover:border-rose-300/40 hover:bg-white/[0.06] inline-flex h-10 items-center gap-2 rounded-full border border-rose-300/30 bg-rose-500/10 px-5 text-sm font-medium text-rose-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            {importing ? "Importing…" : "Import playlist"}
+            {importing ? "Prefetching…" : "Prefetch tracks"}
           </button>
           <p className="text-xs leading-relaxed text-white/40">
-            Fetching reads the title, thumbnail, duration, order and metadata from the source and
-            saves it to the database. Any YouTube playlist or mix works.
+            Optional: prefetch reads the track list now so it&apos;s cached before saving. You can
+            save with just a source URL — the player will fetch fresh tracks at runtime.
           </p>
         </div>
       </SectionCard>
@@ -501,12 +509,13 @@ export function PlaylistForm({ playlist }: { playlist?: Playlist | null }) {
 
       <SectionCard
         title="Tracks"
-        description="Imported automatically from the playlist URL. You can still review, add or remove rows before saving."
+        description="Fetched live from the source URL at runtime. You can still review, add or remove rows before saving; these act as a cached fallback."
       >
         <div className="space-y-4">
           {tracks.length === 0 && (
             <p className="text-muted-foreground rounded-xl border border-dashed border-white/10 p-5 text-center text-sm">
-              No tracks yet. Paste a playlist URL above to import them, or add one manually.
+              No cached tracks yet. Paste a source URL above (optionally prefetch), or add one
+              manually.
             </p>
           )}
           {tracks.map((track, index) => (
