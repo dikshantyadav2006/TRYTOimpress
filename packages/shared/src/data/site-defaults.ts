@@ -38,4 +38,7 @@ export const defaultSiteSettings: SiteSettings = {
     date: "",
     message: "a very special day is coming",
   },
+  navigation: {
+    chaptersEnabled: false,
+  },
 };

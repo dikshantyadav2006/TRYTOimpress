@@ -32,6 +32,7 @@ export type {
   LandingSettings,
   LoveSettings,
   MusicSettings,
+  NavigationSettings,
   ProposalSettings,
   SiteSettings,
   SuccessSettings,

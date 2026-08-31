@@ -13,6 +13,7 @@ export interface Page {
   cta?: { label: string; href: string } | null;
   order: number;
   published: boolean;
+  chapter?: boolean;
   createdAt: string;
   updatedAt: string;
 }

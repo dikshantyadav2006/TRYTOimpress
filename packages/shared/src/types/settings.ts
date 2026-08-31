@@ -36,6 +36,10 @@ export interface BirthdaySettings {
   message: string;
 }
 
+export interface NavigationSettings {
+  chaptersEnabled: boolean;
+}
+
 export interface SiteSettings {
   recipientName: string;
   siteTitle: string;
@@ -45,4 +49,5 @@ export interface SiteSettings {
   music: MusicSettings;
   love: LoveSettings;
   birthday: BirthdaySettings;
+  navigation: NavigationSettings;
 }
