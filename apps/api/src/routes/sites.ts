@@ -10,6 +10,7 @@ export function registerSiteRoutes(app: FastifyInstance, repos: ApiRepos): void 
   const settings = repos.settings;
   const pages = repos.pages;
   const songs = repos.songs;
+  const playlists = repos.playlists;
   const reasons = repos.reasons;
   const dates = repos.dates;
   const letters = repos.letters;
@@ -43,6 +44,14 @@ export function registerSiteRoutes(app: FastifyInstance, repos: ApiRepos): void 
     const user = await auth.findBySlug(request.params.slug);
     if (!user) return reply.code(404).send({ error: "site_not_found" });
     return { data: { slug: user.slug, ownerId: user.id, name: user.name } };
+  });
+
+  app.get("/sites/default", async (request, reply) => {
+    if (!auth) return reply.code(503).send({ error: "db_not_configured" });
+    const users = await auth.listUsers();
+    const first = users[0];
+    if (!first) return reply.code(404).send({ error: "site_not_found" });
+    return { data: { slug: first.slug, name: first.name } };
   });
 
   app.get<{ Params: { slug: string } }>("/sites/:slug/settings", async (request, reply) => {
@@ -107,6 +116,54 @@ export function registerSiteRoutes(app: FastifyInstance, repos: ApiRepos): void 
     if (!user || !songs) return;
     return { data: await songs.getSongs(user.id) };
   });
+
+  app.get<{ Params: { slug: string } }>("/sites/:slug/playlists", async (request, reply) => {
+    const user = await resolveSite(request, reply);
+    if (!user || !playlists) return;
+    return { data: await playlists.listPublic(user.id) };
+  });
+
+  app.get<{ Params: { slug: string; playlistSlug: string } }>(
+    "/sites/:slug/playlists/:playlistSlug",
+    async (request, reply) => {
+      const user = await resolveSite(request, reply);
+      if (!user || !playlists) return;
+      const playlist = await playlists.getBySlug(user.id, request.params.playlistSlug, true);
+      if (!playlist) return reply.code(404).send({ error: "not_found" });
+      return { data: playlist };
+    },
+  );
+
+  app.post<{ Params: { slug: string; playlistSlug: string } }>(
+    "/sites/:slug/playlists/:playlistSlug/plays",
+    async (request, reply) => {
+      const user = await resolveSite(request, reply);
+      if (!user || !playlists) return;
+      await playlists.recordPlay(user.id, request.params.playlistSlug);
+      return { data: { ok: true } };
+    },
+  );
+
+  app.post<{ Params: { slug: string; playlistSlug: string } }>(
+    "/sites/:slug/playlists/:playlistSlug/like",
+    async (request, reply) => {
+      const user = await resolveSite(request, reply);
+      if (!user || !playlists) return;
+      await playlists.recordLike(user.id, request.params.playlistSlug);
+      return { data: { ok: true } };
+    },
+  );
+
+  app.post<{ Params: { slug: string; playlistSlug: string; songId: string; op: string } }>(
+    "/sites/:slug/playlists/:playlistSlug/songs/:songId/:op",
+    async (request, reply) => {
+      const user = await resolveSite(request, reply);
+      if (!user || !playlists) return;
+      const op = request.params.op === "skips" ? "skips" : "plays";
+      await playlists.recordSongPlays(user.id, request.params.playlistSlug, request.params.songId, op);
+      return { data: { ok: true } };
+    },
+  );
 
   app.get<{ Params: { slug: string } }>("/sites/:slug/reasons", async (request, reply) => {
     const user = await resolveSite(request, reply);

@@ -10,6 +10,7 @@ import {
   MongoLovePromiseRepository,
   MongoMediaRepository,
   MongoPageRepository,
+  MongoPlaylistRepository,
   MongoProposalRepository,
   MongoQuestionRepository,
   MongoReasonRepository,
@@ -31,6 +32,7 @@ export interface ApiRepos {
   auth: MongoAuthRepository | null;
   media: MongoMediaRepository | null;
   songs: MongoSongRepository | null;
+  playlists: MongoPlaylistRepository | null;
   reasons: MongoReasonRepository | null;
   dates: MongoDateIdeaRepository | null;
   letters: MongoLetterRepository | null;
@@ -55,6 +57,7 @@ export function createRepos(): ApiRepos {
     auth: useDb ? new MongoAuthRepository() : null,
     media: useDb ? new MongoMediaRepository() : null,
     songs: useDb ? new MongoSongRepository() : null,
+    playlists: useDb ? new MongoPlaylistRepository() : null,
     reasons: useDb ? new MongoReasonRepository() : null,
     dates: useDb ? new MongoDateIdeaRepository() : null,
     letters: useDb ? new MongoLetterRepository() : null,

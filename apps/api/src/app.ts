@@ -13,6 +13,7 @@ import { registerUserRoutes } from "./routes/users";
 import { registerUploadRoutes } from "./routes/upload";
 import { registerProposalRoutes } from "./routes/proposals";
 import { registerSongRoutes } from "./routes/songs";
+import { registerPlaylistRoutes } from "./routes/playlists";
 import { registerReasonRoutes } from "./routes/reasons";
 import { registerDateRoutes } from "./routes/dates";
 import { registerLetterRoutes } from "./routes/letters";
@@ -53,6 +54,7 @@ export function buildApp() {
     registerUploadRoutes(instance, repos);
     registerProposalRoutes(instance, repos);
     registerSongRoutes(instance, repos);
+    registerPlaylistRoutes(instance, repos);
     registerReasonRoutes(instance, repos);
     registerDateRoutes(instance, repos);
     registerLetterRoutes(instance, repos);
