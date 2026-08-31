@@ -13,9 +13,9 @@ import {
   getLoveNotes,
   getLovePromises,
   getPage,
+  getPlaylists,
   getReasons,
   getSiteSettings,
-  getSongs,
   getSurprises,
   getWishes,
 } from "@/lib/content";
@@ -40,12 +40,12 @@ function getDaysTogether(startDate: string): number | null {
 
 export default async function LoveWrappedPage({ params }: SitePageProps) {
   const { slug } = await params;
-  const [page, settings, reasons, songs, dates, letters, notes, compliments, wishes, promises, dreams, capsules, surprises] =
+  const [page, settings, reasons, playlists, dates, letters, notes, compliments, wishes, promises, dreams, capsules, surprises] =
     await Promise.all([
       getPage(slug, "love-wrapped"),
       getSiteSettings(slug),
       getReasons(slug),
-      getSongs(slug),
+      getPlaylists(slug),
       getDateIdeas(slug),
       getLetters(slug),
       getLoveNotes(slug),
@@ -59,10 +59,12 @@ export default async function LoveWrappedPage({ params }: SitePageProps) {
 
   if (!page) notFound();
 
+  const songCount = playlists.reduce((total, playlist) => total + playlist.songs.length, 0);
+
   const stats: WrappedStats = {
     daysTogether: getDaysTogether(settings.love.startDate),
     reasons: reasons.length,
-    songs: songs.length,
+    songs: songCount,
     dates: dates.length,
     letters: letters.length,
     notes: notes.length,

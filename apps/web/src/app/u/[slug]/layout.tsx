@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
-import { MusicProvider, MusicToggle } from "@repo/ui";
+import { MusicProvider } from "@repo/ui";
 
-import { ChapterRail, type ChapterRailItem } from "@/components/chapter/chapter-rail";
+import type { ChapterRailItem } from "@/components/chapter/chapter-rail";
+import { SiteChrome } from "@/components/site-chrome";
 import { getChapterLinks } from "@/lib/chapters";
 import { getSiteSettings } from "@/lib/content";
 import type { SitePageProps } from "@/lib/site";
@@ -58,9 +59,7 @@ export default async function SiteLayout({
 
   return (
     <MusicProvider {...(backgroundMusicUrl ? { backgroundMusicUrl } : {})}>
-      <MusicToggle />
-      {children}
-      <ChapterRail items={chapterItems} />
+      <SiteChrome chapterItems={chapterItems}>{children}</SiteChrome>
     </MusicProvider>
   );
 }
