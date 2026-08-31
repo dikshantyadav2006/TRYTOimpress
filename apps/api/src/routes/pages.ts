@@ -26,6 +26,7 @@ export function registerPageRoutes(app: FastifyInstance, repos: ApiRepos): void 
       cta?: unknown;
       order?: number;
       published?: boolean;
+      chapter?: boolean;
     };
     if (!body.slug || !body.title) {
       return reply.code(400).send({ error: "slug_and_title_required" });
@@ -40,6 +41,7 @@ export function registerPageRoutes(app: FastifyInstance, repos: ApiRepos): void 
         ...(body.cta ? { cta: body.cta as never } : {}),
         ...(typeof body.order === "number" ? { order: body.order } : {}),
         ...(typeof body.published === "boolean" ? { published: body.published } : {}),
+        ...(typeof body.chapter === "boolean" ? { chapter: body.chapter } : {}),
       },
       user.id,
     );
