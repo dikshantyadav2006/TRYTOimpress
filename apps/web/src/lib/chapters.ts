@@ -1,33 +1,9 @@
+import { isPageVisible, sitePagePath } from "@repo/shared";
+
 import { getSitePages } from "@/lib/content";
 
-const DEDICATED_ROUTES = new Set([
-  "our-story",
-  "gallery",
-  "reasons",
-  "songs",
-  "dates",
-  "questions",
-  "love-meter",
-  "love-jar",
-  "compliments",
-  "wishes",
-  "promises",
-  "future",
-  "letters",
-  "time-capsule",
-  "scratch-cards",
-  "surprise",
-  "proposal",
-  "yes",
-  "love-wrapped",
-  "birthday",
-]);
-
 export function chapterHref(slug: string, pageSlug: string): string {
-  if (DEDICATED_ROUTES.has(pageSlug)) {
-    return `/u/${slug}/${pageSlug}`;
-  }
-  return `/u/${slug}/pages/${pageSlug}`;
+  return `/u/${slug}${sitePagePath(pageSlug)}`;
 }
 
 export interface ChapterNav {
@@ -46,9 +22,14 @@ export interface ChapterLink {
 export async function getChapterLinks(slug: string): Promise<ChapterLink[]> {
   const pages = await getSitePages(slug);
   return pages
-    .filter((page) => page.published && page.chapter)
+    .filter((page) => isPageVisible(page) && page.chapter)
     .sort((a, b) => a.order - b.order)
     .map((page) => ({ slug: page.slug, title: page.title, href: chapterHref(slug, page.slug) }));
+}
+
+export async function getFirstChapter(slug: string): Promise<ChapterLink | null> {
+  const chapters = await getChapterLinks(slug);
+  return chapters[0] ?? null;
 }
 
 export async function getChapterNav(slug: string, pageSlug: string): Promise<ChapterNav> {

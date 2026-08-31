@@ -48,7 +48,7 @@ const QUICK_ACTIONS = [
   { href: "/memories/new", label: "New memory", icon: BookHeart },
   { href: "/gallery/new", label: "Add image", icon: Images },
   { href: "/questions/new", label: "New question", icon: MessageCircleQuestion },
-  { href: "/songs/new", label: "New song", icon: Music2 },
+  { href: "/playlists/new", label: "New playlist", icon: Music2 },
   { href: "/pages/new", label: "New page", icon: FileText },
 ] as const;
 
@@ -58,12 +58,13 @@ export default function DashboardPage() {
   const gallery = useData("/gallery");
   const questions = useData("/questions");
   const pages = useData("/pages");
+  const playlists = useData("/playlists");
   const answers = useData("/answers");
   const users = useData("/users");
 
-  const loading = [memories, gallery, questions, pages, answers].some((d) => d.loading);
+  const loading = [memories, gallery, questions, pages, playlists, answers].some((d) => d.loading);
   const error =
-    [memories, gallery, questions, pages, answers].find((d) => d.error)?.error ?? undefined;
+    [memories, gallery, questions, pages, playlists, answers].find((d) => d.error)?.error ?? undefined;
 
   const stats: Stat[] = [
     {
@@ -105,6 +106,14 @@ export default function DashboardPage() {
       icon: FileText,
       count: pages.data.length,
       accent: "emerald",
+    },
+    {
+      href: "/playlists",
+      title: "Playlists",
+      description: "Themed song collections",
+      icon: Music2,
+      count: playlists.data.length,
+      accent: "rose",
     },
     {
       href: "/answers",

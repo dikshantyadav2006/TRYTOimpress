@@ -7,12 +7,11 @@ import {
   Copy,
   GripVertical,
   Loader2,
+  Pencil,
   RefreshCw,
   Square,
   Star,
-  Tag,
   Trash2,
-  Type,
   X,
 } from "lucide-react";
 
@@ -41,6 +40,12 @@ function categoryClasses(category: GalleryCategory): string {
 function isVideo(url: string): boolean {
   return !IMAGE_EXTENSIONS.test(url);
 }
+
+const COLUMN_CLASSES: Record<number, string> = {
+  2: "grid-cols-2 sm:grid-cols-2",
+  3: "grid-cols-2 sm:grid-cols-3",
+  4: "grid-cols-2 sm:grid-cols-4",
+};
 
 function TileMedia({ url, caption }: { url?: string | undefined; caption: string }) {
   if (!url) {
@@ -71,6 +76,7 @@ function TileMedia({ url, caption }: { url?: string | undefined; caption: string
 export function GalleryGrid({
   images,
   view,
+  columns = 2,
   onChanged,
   selecting,
   selected,
@@ -78,14 +84,14 @@ export function GalleryGrid({
 }: {
   images: GalleryImage[];
   view: "grid" | "list";
+  columns?: 2 | 3 | 4;
   onChanged: () => void;
   selecting?: boolean;
   selected?: ReadonlySet<string>;
   onToggle?: (id: string) => void;
 }) {
   const { showToast } = useToast();
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [openCategory, setOpenCategory] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState<GalleryImage | null>(null);
@@ -105,13 +111,8 @@ export function GalleryGrid({
       return next;
     });
 
-  const toggleExpanded = (id: string) =>
-    setExpanded((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggleDetail = (id: string) =>
+    setDetailId((current) => (current === id ? null : id));
 
   const patch = async (image: GalleryImage, body: Record<string, unknown>) => {
     setBusyFlag(image.id);
@@ -144,11 +145,7 @@ export function GalleryGrid({
       delete next[image.id];
       return next;
     });
-    setExpanded((s) => {
-      const next = new Set(s);
-      next.delete(image.id);
-      return next;
-    });
+    setDetailId((current) => (current === image.id ? null : current));
   };
 
   const remove = async (image: GalleryImage) => {
@@ -224,12 +221,17 @@ export function GalleryGrid({
       <>
         <button
           type="button"
-          onClick={() => setOpenCategory(openCategory === image.id ? null : image.id)}
-          aria-label="Change category"
-          title="Change category"
-          className="glass flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/90 hover:text-black"
+          onClick={() => toggleDetail(image.id)}
+          aria-label="Edit caption and category"
+          title="Edit caption and category"
+          className={cn(
+            "glass flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+            detailId === image.id
+              ? "bg-white text-black"
+              : "hover:bg-white/90 text-white hover:text-black",
+          )}
         >
-          <Tag className="h-4 w-4" />
+          <Pencil className="h-4 w-4" />
         </button>
 
         <button
@@ -270,21 +272,6 @@ export function GalleryGrid({
 
         <button
           type="button"
-          onClick={() => toggleExpanded(image.id)}
-          aria-label="Edit caption"
-          title="Edit caption"
-          className={cn(
-            "glass flex h-9 w-9 items-center justify-center rounded-full transition-colors",
-            expanded.has(image.id)
-              ? "bg-white text-black"
-              : "hover:bg-white/90 text-white hover:text-black",
-          )}
-        >
-          <Type className="h-4 w-4" />
-        </button>
-
-        <button
-          type="button"
           onClick={() => toggleFeatured(image)}
           disabled={saving}
           aria-label={image.featured ? "Unfeature" : "Feature"}
@@ -304,7 +291,7 @@ export function GalleryGrid({
 
   const renderTile = (image: GalleryImage, index: number) => {
     const saving = busy.has(image.id);
-    const isExpanded = expanded.has(image.id);
+    const isExpanded = detailId === image.id;
     const draft = drafts[image.id];
     const initDrag = (event: React.DragEvent) => {
       dragIndexRef.current = index;
@@ -332,12 +319,12 @@ export function GalleryGrid({
             {!selectMode && (
               <button
                 type="button"
-                onClick={() => setOpenCategory(openCategory === image.id ? null : image.id)}
-                title="Change category"
+                onClick={() => toggleDetail(image.id)}
+                title="Edit category"
                 className={cn(
-                  "absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white shadow transition-opacity",
+                  "absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white shadow transition-all hover:brightness-110",
                   categoryClasses(image.category),
-                  openCategory === image.id ? "opacity-0" : "opacity-100",
+                  detailId === image.id && "opacity-0",
                 )}
               >
                 {image.category}
@@ -409,65 +396,74 @@ export function GalleryGrid({
           )}
         </div>
 
-        {openCategory === image.id && (
-          <div className="animate-sheet-up z-30 mt-2 flex items-center gap-1.5 rounded-2xl border border-white/15 bg-white/95 p-1.5 shadow-xl">
-            {CATEGORIES.map((category) => {
-              const active = category.value === image.category;
-              return (
-                <button
-                  key={category.value}
-                  type="button"
-                  onClick={() => {
-                    setCategory(image, category.value);
-                    setOpenCategory(null);
-                  }}
-                  className={cn(
-                    "rounded-xl px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-all",
-                    active
-                      ? cn(category.className, "text-white shadow")
-                      : "text-black/60 hover:bg-black/5",
-                  )}
-                >
-                  {active && <Check className="mr-1 inline h-3 w-3" />}
-                  {category.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         {isExpanded && (
           <div className="animate-sheet-up z-20 mt-2 rounded-2xl border border-white/15 bg-white/95 p-3 text-black shadow-xl">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider">Edit caption</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Details</span>
               <button
                 type="button"
-                onClick={() => toggleExpanded(image.id)}
-                aria-label="Close caption editor"
-                className="rounded-lg p-1 transition-colors hover:bg-white/10"
+                onClick={() => toggleDetail(image.id)}
+                aria-label="Close details"
+                className="rounded-lg p-1 transition-colors hover:bg-black/5"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            <div className="mb-3">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-black/50">
+                Category
+              </p>
+              <div className="flex items-center gap-1.5">
+                {CATEGORIES.map((category) => {
+                  const active = category.value === image.category;
+                  return (
+                    <button
+                      key={category.value}
+                      type="button"
+                      disabled={saving}
+                      onClick={() => setCategory(image, category.value)}
+                      className={cn(
+                        "rounded-xl px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-all",
+                        active
+                          ? cn(category.className, "text-white shadow")
+                          : "bg-black/5 text-black/60 hover:bg-black/10",
+                      )}
+                    >
+                      {active && <Check className="mr-1 inline h-3 w-3" />}
+                      {category.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-black/50">
+              Caption
+            </p>
             <input
               autoFocus
               value={draft ?? image.caption}
               onChange={(event) => setDrafts((s) => ({ ...s, [image.id]: event.target.value }))}
               onKeyDown={(event) => {
                 if (event.key === "Enter") void saveCaption(image);
-                if (event.key === "Escape") toggleExpanded(image.id);
+                if (event.key === "Escape") toggleDetail(image.id);
               }}
               placeholder="Add a caption…"
               className="mb-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-rose-400"
             />
+
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setDrafts((s) => {
-                  const next = { ...s };
-                  delete next[image.id];
-                  return next;
-                })}
+                onClick={() => {
+                  setDrafts((s) => {
+                    const next = { ...s };
+                    delete next[image.id];
+                    return next;
+                  });
+                  toggleDetail(image.id);
+                }}
                 className="rounded-full border border-black/10 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-black/5"
               >
                 Cancel
@@ -535,7 +531,7 @@ export function GalleryGrid({
       />
 
       {view === "grid" ? (
-        <div className="columns-2 gap-4 sm:columns-3 lg:columns-4 xl:columns-5">
+        <div className={cn("grid gap-4 sm:gap-5", COLUMN_CLASSES[columns] ?? COLUMN_CLASSES[2])}>
           {images.map((image, index) => renderTile(image, index))}
         </div>
       ) : (

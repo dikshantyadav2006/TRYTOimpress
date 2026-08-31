@@ -34,22 +34,43 @@ const VIEW_OPTIONS: { value: GalleryView; label: string; icon: LucideIcon }[] = 
   { value: "list", label: "List", icon: List },
 ];
 
+const COLUMN_KEY = "gallery-columns";
+
+type GalleryColumns = 2 | 3 | 4;
+
+const COLUMN_OPTIONS: { value: string; label: string }[] = [
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "4", label: "4" },
+];
+
 export default function GalleryPage() {
   const { data: images, loading, error, reloadSilently } = useData<GalleryImage>("/gallery");
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [bulkCategory, setBulkCategory] = useState<GalleryCategory>("moment");
   const [view, setView] = useState<GalleryView>("grid");
+  const [columns, setColumns] = useState<GalleryColumns>(2);
   const { showToast } = useToast();
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(VIEW_KEY);
-    if (stored === "grid" || stored === "list") setView(stored);
+    const storedView = window.localStorage.getItem(VIEW_KEY);
+    if (storedView === "grid" || storedView === "list") setView(storedView);
+    const storedColumns = window.localStorage.getItem(COLUMN_KEY);
+    if (storedColumns === "2" || storedColumns === "3" || storedColumns === "4") {
+      setColumns(Number(storedColumns) as GalleryColumns);
+    }
   }, []);
 
   const setViewPersisted = (next: GalleryView) => {
     setView(next);
     window.localStorage.setItem(VIEW_KEY, next);
+  };
+
+  const setColumnsPersisted = (next: string) => {
+    const value = Number(next) as GalleryColumns;
+    setColumns(value);
+    window.localStorage.setItem(COLUMN_KEY, next);
   };
 
   const needle = query.trim().toLowerCase();
@@ -109,6 +130,16 @@ export default function GalleryPage() {
               options={VIEW_OPTIONS}
               className="w-auto"
             />
+            {view === "grid" && (
+              <SegmentedControl
+                name="Columns"
+                value={String(columns)}
+                onChange={setColumnsPersisted}
+                options={COLUMN_OPTIONS}
+                size="sm"
+                className="w-auto"
+              />
+            )}
             <SelectButton
               selecting={bulk.selecting}
               onToggle={bulk.selecting ? bulk.cancel : bulk.begin}
@@ -151,6 +182,7 @@ export default function GalleryPage() {
         <GalleryGrid
           images={sorted}
           view={view}
+          columns={columns}
           onChanged={() => void reloadSilently()}
           selecting={bulk.selecting}
           selected={bulk.selected}

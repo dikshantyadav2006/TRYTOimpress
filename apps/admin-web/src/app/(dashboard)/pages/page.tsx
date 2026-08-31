@@ -3,24 +3,44 @@
 import { useEffect, useState } from "react";
 
 import type { Page } from "@repo/shared";
+import { sitePagePath } from "@repo/shared";
+import { Link2 } from "lucide-react";
 
 import { EmptyState, ListCard, LoadingState, PageHeader, ErrorState } from "@/components/crud";
-import { Badge, SearchInput, Switch } from "@/components/ui";
+import { Badge, SearchInput, SegmentedControl, Switch } from "@/components/ui";
 import { BulkBar, SelectAllButton, SelectButton, bulkDelete, useBulkSelection } from "@/components/bulk";
 import { ReorderList } from "@/components/reorder";
 import { useToast } from "@/components/toast";
+import { useAuth } from "@/context/auth-provider";
 import { del, put } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { useData } from "@/lib/use-data";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.NODE_ENV === "production"
+    ? "https://trytotry.onrender.com"
+    : "http://localhost:3000");
+
+type Visibility = "visible" | "link" | "hidden";
+
+const VISIBILITY_TONES: Record<Visibility, "emerald" | "amber" | "neutral"> = {
+  visible: "emerald",
+  link: "amber",
+  hidden: "neutral",
+};
+
+const VISIBILITY_LABELS: Record<Visibility, string> = {
+  visible: "visible",
+  link: "link only",
+  hidden: "hidden",
+};
+
 function PageMeta({ page }: { page: Page }) {
+  const tone = VISIBILITY_TONES[page.visibility] ?? "neutral";
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {page.published ? (
-        <Badge tone="emerald">visible</Badge>
-      ) : (
-        <Badge tone="amber">hidden</Badge>
-      )}
+      <Badge tone={tone}>{VISIBILITY_LABELS[page.visibility] ?? page.visibility}</Badge>
       {page.chapter && <Badge tone="rose">in chapters</Badge>}
     </div>
   );
@@ -29,16 +49,30 @@ function PageMeta({ page }: { page: Page }) {
 function PageRow({
   page,
   busy,
-  onTogglePublished,
+  userSlug,
+  onVisibility,
   onToggleChapter,
   onDeleted,
 }: {
   page: Page;
   busy: string | null;
-  onTogglePublished: (page: Page) => void;
+  userSlug?: string | undefined;
+  onVisibility: (page: Page, visibility: Visibility) => void;
   onToggleChapter: (page: Page) => void;
   onDeleted: (page: Page) => void;
 }) {
+  const { showToast } = useToast();
+
+  const copyShareLink = async () => {
+    const url = `${SITE_URL}/u/${userSlug}${sitePagePath(page.slug)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("success", "Share link copied");
+    } catch {
+      showToast("error", "Could not copy link");
+    }
+  };
+
   return (
     <ListCard
       title={page.title}
@@ -46,19 +80,22 @@ function PageRow({
       meta={<PageMeta page={page} />}
       href={`/pages/${page.id}`}
       actions={
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center">
           <span
-            className="flex items-center gap-1.5"
-            title={page.published ? "Click to hide from web" : "Click to show on web"}
+            className="w-48"
+            title="Visible: on the web & navigator. Link only: shareable, not listed. Hidden: private."
           >
-            <Switch
-              checked={page.published}
-              onChange={() => onTogglePublished(page)}
-              label={page.published ? "Unpublish" : "Publish"}
+            <SegmentedControl
+              name="Visibility"
+              size="sm"
+              value={page.visibility}
+              onChange={(value) => onVisibility(page, value)}
+              options={[
+                { value: "visible" as const, label: "Show" },
+                { value: "link" as const, label: "Link" },
+                { value: "hidden" as const, label: "Hide" },
+              ]}
             />
-            <span className="text-muted-foreground hidden text-[11px] sm:inline">
-              show
-            </span>
           </span>
           <span
             className="flex items-center gap-1.5"
@@ -69,23 +106,36 @@ function PageRow({
               onChange={() => onToggleChapter(page)}
               label={page.chapter ? "Remove from chapters" : "Add to chapters"}
             />
-            <span className="text-muted-foreground hidden text-[11px] sm:inline">
-              chapters
-            </span>
+            <span className="text-muted-foreground hidden text-[11px] sm:inline">chapters</span>
           </span>
-          <button
-            type="button"
-            disabled={busy === page.id}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onDeleted(page);
-            }}
-            aria-label="Delete page"
-            className="text-muted-foreground hover:text-rose-300 disabled:opacity-50 rounded-lg px-2 py-2 text-xs font-medium transition-colors"
-          >
-            {busy === page.id ? "…" : "delete"}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void copyShareLink();
+              }}
+              aria-label="Copy share link"
+              title="Copy share link"
+              className="text-muted-foreground hover:text-foreground rounded-lg p-2 transition-colors"
+            >
+              <Link2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              disabled={busy === page.id}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onDeleted(page);
+              }}
+              aria-label="Delete page"
+              className="text-muted-foreground hover:text-rose-300 disabled:opacity-50 rounded-lg px-2 py-2 text-xs font-medium transition-colors"
+            >
+              {busy === page.id ? "…" : "delete"}
+            </button>
+          </div>
         </div>
       }
     />
@@ -94,6 +144,7 @@ function PageRow({
 
 export default function PagesPage() {
   const { data: pages, loading, error, reloadSilently } = useData<Page>("/pages");
+  const { user } = useAuth();
   const [items, setItems] = useState<Page[]>([]);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -117,15 +168,22 @@ export default function PagesPage() {
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
 
-  const togglePublished = async (page: Page) => {
-    const next = page.published;
-    setItems((current) => current.map((p) => (p.id === page.id ? ({ ...p, published: !p.published } as Page) : p)));
+  const setVisibility = async (page: Page, visibility: Visibility) => {
+    const prev = page.visibility;
+    setItems((current) => current.map((p) => (p.id === page.id ? ({ ...p, visibility } as Page) : p)));
     setBusy(page.id);
     try {
-      await put(`/pages/${page.id}`, { published: !next });
-      showToast("success", next ? "Page hidden" : "Page is now visible");
+      await put(`/pages/${page.id}`, { visibility });
+      showToast(
+        "success",
+        visibility === "visible"
+          ? "Page is visible on the web"
+          : visibility === "link"
+            ? "Page shared via link only"
+            : "Page hidden",
+      );
     } catch (err) {
-      setItems((current) => current.map((p) => (p.id === page.id ? ({ ...p, published: next } as Page) : p)));
+      setItems((current) => current.map((p) => (p.id === page.id ? ({ ...p, visibility: prev } as Page) : p)));
       showToast("error", friendlyError(err).message);
     } finally {
       setBusy(null);
@@ -182,7 +240,7 @@ export default function PagesPage() {
     <div>
       <PageHeader
         title="Chapters & pages"
-        subtitle="Toggle which chapters are visible on the web and which appear in the chapter navigator."
+        subtitle="Control visibility and navigation for each page."
         newHref="/pages/new"
         newLabel="New page"
         action={
@@ -194,10 +252,13 @@ export default function PagesPage() {
       />
       <p className="text-muted-foreground mb-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-xs">
         <span className="flex items-center gap-2">
-          <Switch checked onChange={() => {}} label="visible toggle" /> show — visible on the web
+          <Badge tone="emerald">Show</Badge> visible on the web & in the navigator
         </span>
         <span className="flex items-center gap-2">
-          <Switch checked onChange={() => {}} label="chapters toggle" /> chapters — appears in the chapter navigator
+          <Badge tone="amber">Link</Badge> shareable by link, not listed
+        </span>
+        <span className="flex items-center gap-2">
+          <Badge tone="neutral">Hide</Badge> private, admins only
         </span>
       </p>
       {!bulk.selecting && items.length > 1 && (
@@ -244,7 +305,8 @@ export default function PagesPage() {
             <PageRow
               page={page}
               busy={busy}
-              onTogglePublished={(p) => void togglePublished(p)}
+              userSlug={user?.slug}
+              onVisibility={(p, v) => void setVisibility(p, v)}
               onToggleChapter={(p) => void toggleChapter(p)}
               onDeleted={(p) => void onDelete(p)}
             />

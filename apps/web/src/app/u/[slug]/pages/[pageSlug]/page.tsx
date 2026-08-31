@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import type { PageBlock } from "@repo/shared";
+import { isPageAccessible } from "@repo/shared";
 import { BlurReveal, TextReveal } from "@repo/ui";
 
 import { ChapterHeader } from "@/components/chapter/chapter-header";
@@ -71,7 +72,7 @@ export default async function CustomPage({ params }: SiteContentPageProps) {
   const { slug, pageSlug } = await params;
   const page = await getPage(slug, pageSlug);
 
-  if (!page || !page.published) {
+  if (!page || !isPageAccessible(page)) {
     notFound();
   }
 

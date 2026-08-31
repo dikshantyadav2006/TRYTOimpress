@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlignLeft, Heading1, Image as ImageIcon, Trash2 } from "lucide-react";
+import { AlignLeft, Heading1, Image as ImageIcon, Link2, Trash2 } from "lucide-react";
 
 import type { Page, PageBlock } from "@repo/shared";
+import { sitePagePath } from "@repo/shared";
 
 import {
   FormFooter,
@@ -17,6 +18,8 @@ import {
 } from "@/components/ui";
 import { UploadField } from "@/components/upload-field";
 import { useDirtyGuard } from "@/components/dirty-guard";
+import { useToast } from "@/components/toast";
+import { useAuth } from "@/context/auth-provider";
 import { ApiError, post, put } from "@/lib/api";
 
 function newBlock(): PageBlock {
@@ -38,7 +41,9 @@ export function PageForm({ page }: { page?: Page | null }) {
   const [subtitle, setSubtitle] = useState(page?.subtitle ?? "");
   const [heroImageUrl, setHeroImageUrl] = useState(page?.heroImageUrl ?? "");
   const [order, setOrder] = useState(String(page?.order ?? ""));
-  const [published, setPublished] = useState(page?.published ?? true);
+  const [visibility, setVisibility] = useState<"visible" | "link" | "hidden">(
+    page?.visibility ?? "visible",
+  );
   const [chapter, setChapter] = useState(page?.chapter ?? false);
   const [blocks, setBlocks] = useState<PageBlock[]>(
     page?.blocks?.length ? page.blocks.map((b) => ({ ...b })) : [newBlock()],
@@ -48,7 +53,28 @@ export function PageForm({ page }: { page?: Page | null }) {
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
 
-  useDirtyGuard({ slug, title, subtitle, heroImageUrl, order, published, chapter, blocks, ctaLabel, ctaHref });
+  const { user } = useAuth();
+  const { showToast } = useToast();
+
+  const SITE_URL =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.NODE_ENV === "production"
+      ? "https://trytotry.onrender.com"
+      : "http://localhost:3000");
+
+  const shareUrl = isEdit && page ? `${SITE_URL}/u/${user?.slug}${sitePagePath(page.slug)}` : null;
+
+  const copyShareLink = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      showToast("success", "Share link copied");
+    } catch {
+      showToast("error", "Could not copy link");
+    }
+  };
+
+  useDirtyGuard({ slug, title, subtitle, heroImageUrl, order, visibility, chapter, blocks, ctaLabel, ctaHref });
 
   const replaceBlock = (index: number, block: PageBlock) => {
     setBlocks((current) => current.map((b, i) => (i === index ? block : b)));
@@ -88,7 +114,7 @@ export function PageForm({ page }: { page?: Page | null }) {
       ...(heroImageUrl ? { heroImageUrl } : {}),
       blocks: cleanedBlocks,
       ...(order !== "" ? { order: Number(order) } : {}),
-      published,
+      visibility,
       chapter,
     };
     if (!chapter && ctaLabel.trim() && ctaHref.trim()) {
@@ -139,14 +165,41 @@ export function PageForm({ page }: { page?: Page | null }) {
             onChange={(event) => setSubtitle(event.target.value)}
           />
         </div>
-        <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-          <Switch checked={published} onChange={setPublished} label="Published" />
-          Published
-        </label>
+        <div>
+          <Label>Visibility</Label>
+          <SegmentedControl
+            name="Visibility"
+            value={visibility}
+            onChange={setVisibility}
+            options={[
+              { value: "visible", label: "Visible" },
+              { value: "link", label: "Link only" },
+              { value: "hidden", label: "Hidden" },
+            ]}
+          />
+          <p className="text-muted-foreground mt-1.5 text-xs">
+            {visibility === "visible"
+              ? "Shown on the site and in the chapter navigator."
+              : visibility === "link"
+                ? "Not published, but openable via its direct link (share without publishing)."
+                : "Private — only admins can see it."}
+          </p>
+        </div>
         <label className="flex cursor-pointer items-center gap-2.5 text-sm">
           <Switch checked={chapter} onChange={setChapter} label="Show in chapters" />
           Show in chapter navigator
         </label>
+        {shareUrl && (
+          <button
+            type="button"
+            onClick={copyShareLink}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm transition-colors"
+          >
+            <Link2 className="h-4 w-4" />
+            Copy share link
+            <span className="font-mono text-[10px] text-white/40">/u/{user?.slug}{sitePagePath(page?.slug ?? "")}</span>
+          </button>
+        )}
         <p className="text-muted-foreground text-xs">
           Chapter pages link to the next chapter automatically by order — no link to set.
         </p>
