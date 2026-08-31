@@ -54,9 +54,11 @@ export {
   fetchYouTubePlaylist,
   getProvider,
   playlistProviders,
+  resolvePlaylistSource,
   type ImportedPlaylist,
   type ImportedTrack,
   type PlaylistProviderAdapter,
+  type ResolvedPlaylistSource,
 } from "./services/import.service";
 export {
   createProposalSchema,
@@ -77,6 +79,7 @@ export {
   getYouTubeThumbnail,
   parseYouTubeId,
   parseYouTubePlaylistId,
+  parseYouTubePlaylistSourceUrl,
   isYouTubeUrl,
 } from "./utils/youtube";
 export {

@@ -26,21 +26,45 @@ export function getYouTubeEmbedUrl(videoId: string): string {
 }
 
 const YOUTUBE_PLAYLIST_PATTERNS = [
-  /(?:youtube\.com\/playlist\?.*list=)([A-Za-z0-9_-]{13,})/,
-  /(?:youtube\.com\/watch\?.*list=)([A-Za-z0-9_-]{13,})/,
-  /youtu\.be\/([A-Za-z0-9_-]{13,})/,
-  /^([A-Za-z0-9_-]{13,})$/,
+  /(?:youtube\.com|youtu\.be|music\.youtube\.com)\/playlist\?.*list=([A-Za-z0-9_-]+)/i,
+  /(?:youtube\.com|youtu\.be|music\.youtube\.com)\/watch\?.*list=([A-Za-z0-9_-]+)/i,
+  /^(?:https?:\/\/)?(?:m\.|music\.)?youtube\.com\/(?:playlist|watch)\?[^#]*list=([A-Za-z0-9_-]+)/i,
+  /^([A-Za-z0-9_-]+)$/,
 ];
 
+/**
+ * Extracts the `list` query parameter from a YouTube URL. Never validates the
+ * ID length — a short playlist ID is perfectly valid (the source API confirms
+ * it). Accepts bare IDs, full URLs and every host variant (m., music.).
+ */
 export function parseYouTubePlaylistId(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
+
+  // Prefer URL parsing so `?list=` is the single source of truth. `new URL`
+  // silently normalises m./music./www. hosts and ignores unrelated params.
+  try {
+    const url = new URL(
+      /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+    );
+    const list = url.searchParams.get("list");
+    if (list) return list;
+  } catch {
+    // fall through to pattern matching below
+  }
+
   for (const pattern of YOUTUBE_PLAYLIST_PATTERNS) {
     const match = trimmed.match(pattern);
     const playlistId = match?.[1];
     if (playlistId) return playlistId;
   }
   return null;
+}
+
+/** The canonical, normalised source URL for a YouTube playlist, or null. */
+export function parseYouTubePlaylistSourceUrl(input: string): string | null {
+  const playlistId = parseYouTubePlaylistId(input);
+  return playlistId ? `https://www.youtube.com/playlist?list=${playlistId}` : null;
 }
 
 export function isYouTubeUrl(input: string): boolean {
