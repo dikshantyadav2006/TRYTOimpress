@@ -7,7 +7,7 @@ import type { ProposalStatus } from "../types/proposal";
 import type { ProposalAnswer } from "../types/response";
 import type { AdminRole } from "../types/admin";
 import type { PageBlock, PageVisibility } from "../types/page";
-import type { MusicMood } from "../types/playlist";
+import type { MusicMood, PlaylistMode, PlaylistProvider } from "../types/playlist";
 import type { SharePermission, ShareRole } from "../types/share";
 
 export interface MemoryDoc {
@@ -196,6 +196,7 @@ export interface PlaylistSongDoc {
   title: string;
   artist: string;
   youtubeId: string;
+  thumbnail?: string;
   duration?: number;
   mood?: MusicMood;
   note?: string;
@@ -217,6 +218,9 @@ export interface PlaylistDoc {
   slug: string;
   description?: string;
   coverImage?: string;
+  mode: PlaylistMode;
+  provider: PlaylistProvider;
+  providerPlaylistId?: string;
   backgrounds: string[];
   theme: PlaylistThemeDoc;
   quotes: string[];

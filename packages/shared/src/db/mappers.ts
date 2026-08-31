@@ -321,6 +321,9 @@ export function mapPlaylist(doc: PlaylistDoc): Playlist {
     slug: doc.slug,
     ...(doc.description ? { description: doc.description } : {}),
     ...(doc.coverImage ? { coverImage: doc.coverImage } : {}),
+    mode: doc.mode ?? "video",
+    provider: doc.provider ?? "manual",
+    ...(doc.providerPlaylistId ? { providerPlaylistId: doc.providerPlaylistId } : {}),
     backgrounds: [...(doc.backgrounds ?? [])],
     theme: { ...doc.theme },
     quotes: [...(doc.quotes ?? [])],
@@ -328,7 +331,10 @@ export function mapPlaylist(doc: PlaylistDoc): Playlist {
     ...(doc.recommendedSlugs?.length
       ? { recommendedSlugs: [...doc.recommendedSlugs] }
       : {}),
-    songs: (doc.songs ?? []).map((song) => ({ ...song })),
+    songs: (doc.songs ?? []).map((song) => ({
+      ...song,
+      ...(song.thumbnail ? { thumbnail: song.thumbnail } : {}),
+    })),
     plays: doc.plays ?? 0,
     likes: doc.likes ?? 0,
     order: doc.order,

@@ -1,6 +1,12 @@
 import { ObjectId } from "mongodb";
 
-import type { MusicMood, Playlist, PlaylistSong } from "../../types/playlist";
+import type {
+  MusicMood,
+  Playlist,
+  PlaylistMode,
+  PlaylistProvider,
+  PlaylistSong,
+} from "../../types/playlist";
 import { playlists, type PlaylistDoc } from "../models";
 import { mapPlaylist } from "../mappers";
 
@@ -9,6 +15,7 @@ export interface PlaylistSongInput {
   title: string;
   artist: string;
   youtubeId: string;
+  thumbnail?: string;
   duration?: number;
   mood?: MusicMood;
   note?: string;
@@ -20,6 +27,9 @@ export interface PlaylistInput {
   slug: string;
   description?: string;
   coverImage?: string;
+  mode?: PlaylistMode;
+  provider?: PlaylistProvider;
+  providerPlaylistId?: string;
   backgrounds: string[];
   theme: { overlayColor: string; textColor: string; accentColor: string };
   quotes: string[];
@@ -36,6 +46,7 @@ function mapSongInputs(input: PlaylistSongInput[]): PlaylistSong[] {
     title: song.title,
     artist: song.artist,
     youtubeId: song.youtubeId,
+    ...(song.thumbnail ? { thumbnail: song.thumbnail } : {}),
     ...(song.duration ? { duration: song.duration } : {}),
     ...(song.mood ? { mood: song.mood } : {}),
     ...(song.note ? { note: song.note } : {}),
@@ -91,6 +102,8 @@ export class MongoPlaylistRepository {
       ownerId,
       name: input.name,
       slug: input.slug,
+      mode: input.mode ?? "video",
+      provider: input.provider ?? "manual",
       backgrounds: [...(input.backgrounds ?? [])],
       theme: {
         overlayColor: input.theme.overlayColor,
@@ -108,6 +121,7 @@ export class MongoPlaylistRepository {
       updatedAt: now,
       ...(input.description ? { description: input.description } : {}),
       ...(input.coverImage ? { coverImage: input.coverImage } : {}),
+      ...(input.providerPlaylistId ? { providerPlaylistId: input.providerPlaylistId } : {}),
       ...(input.recommendedSlugs?.length ? { recommendedSlugs: [...input.recommendedSlugs] } : {}),
     };
     await playlists().insertOne(doc);
@@ -124,6 +138,9 @@ export class MongoPlaylistRepository {
     if (input.backgrounds !== undefined) patch.backgrounds = [...input.backgrounds];
     if (input.quotes !== undefined) patch.quotes = [...input.quotes];
     if (input.mood !== undefined) patch.mood = input.mood;
+    if (input.mode !== undefined) patch.mode = input.mode;
+    if (input.provider !== undefined) patch.provider = input.provider;
+    if (input.providerPlaylistId !== undefined) patch.providerPlaylistId = input.providerPlaylistId;
     if (input.recommendedSlugs !== undefined)
       patch.recommendedSlugs = input.recommendedSlugs?.length ? [...input.recommendedSlugs] : [];
     if (input.songs !== undefined) patch.songs = mapSongInputs(input.songs);
